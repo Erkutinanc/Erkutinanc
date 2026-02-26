@@ -24,32 +24,33 @@ st.markdown("""
 
 # --- 2. YARDIMCI FONKSİYONLAR ---
 def analyze_vix(vix):
-    if vix < 20: 
-        return "⚖️ DENGELİ / GÜVENLİ", "#10b981"
-    elif vix < 30: 
-        return "⚠️ HAFİF GERGİN", "#f59e0b"
-    else: 
-        return "🚨 YÜKSEK KORKU", "#ef4444"
+    if vix < 20: return "⚖️ DENGELİ / GÜVENLİ", "#10b981"
+    elif vix < 30: return "⚠️ HAFİF GERGİN", "#f59e0b"
+    else: return "🚨 YÜKSEK KORKU", "#ef4444"
 
 @st.cache_data(ttl=600)
 def fetch_stock_data(ticker, interval_key, is_usd=False, usd_rate=1.0):
     try:
         t = yf.Ticker(ticker)
         params = {"4 Saatlik": "90m", "Günlük": "1d", "Haftalık": "1wk"}
+        # Veri çekme periyodunu biraz daha genişletelim ki Bollinger doğru hesaplansın
         df = t.history(period="1y", interval=params[interval_key])
         
         if df.empty or len(df) < 20: return None
         
-        # Temel Fiyat ve USD Çevrimi
+        # Temel Fiyat ve Ortalamalar (TL bazlı)
         fiyat_tl = df['Close'].iloc[-1]
-        fiyat = fiyat_tl / usd_rate
+        ema13 = df['Close'].ewm(span=13).mean().iloc[-1]
         
-        # Fibonacci Hedefleme (TL bazlı hesaplanıp birime çevrilir)
+        # Birim Çevrimi
+        display_fiyat = fiyat_tl / usd_rate
+        
+        # Fibonacci Hedefleme (TL bazlı hesaplanır, birime çevrilir)
         high_max = df['High'].max()
         low_min = df['Low'].min()
         diff = high_max - low_min
         hedef_tl = high_max + (0.618 * diff) if fiyat_tl > (high_max * 0.95) else high_max
-        hedef = hedef_tl / usd_rate
+        display_hedef = hedef_tl / usd_rate
         
         # --- BOLLINGER SIKIŞMASI (SQUEEZE) ---
         sma20 = df['Close'].rolling(window=20).mean()
@@ -57,9 +58,11 @@ def fetch_stock_data(ticker, interval_key, is_usd=False, usd_rate=1.0):
         upper_band = sma20 + (2 * std20)
         lower_band = sma20 - (2 * std20)
         bw = ((upper_band - lower_band) / sma20).iloc[-1]
+        # %12 ve altı daralma sıkışma sinyalidir
         squeeze = "🎯 SIKIŞMA" if bw < 0.12 else "💎 NORMAL"
 
         # --- TEMEL VERİLER (ROE & TEMETTÜ) ---
+        # .info bazen yavaşlatabilir, hata kontrolü ekliyoruz
         info = t.info
         roe = info.get('returnOnEquity', 0) * 100 
         div_yield = info.get('dividendYield', 0) * 100 
@@ -71,15 +74,12 @@ def fetch_stock_data(ticker, interval_key, is_usd=False, usd_rate=1.0):
         loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
         rsi = 100 - (100 / (1 + (gain.iloc[-1] / (loss.iloc[-1] + 1e-6))))
         
-        # --- TEKNİK DİSİPLİN (13 EMA) ---
+        # --- SKORLAMA (Selçuk Gönençer Disiplini) ---
         skor = 0
-        ema13 = df['Close'].ewm(span=13).mean().iloc[-1]
-        
         if fiyat_tl > ema13: skor += 50
-        if 45 < rsi < 70: skor += 30
+        if 40 < rsi < 70: skor += 30
         if df['Volume'].iloc[-1] > df['Volume'].tail(10).mean(): skor += 20
         
-        # Karar Mekanizması
         if skor >= 80: karar = "🚀 GÜÇLÜ AL"
         elif skor >= 50: karar = "🔄 TUT / İZLE"
         elif skor >= 30: karar = "⚠️ BEKLE"
@@ -87,8 +87,8 @@ def fetch_stock_data(ticker, interval_key, is_usd=False, usd_rate=1.0):
             
         return {
             "Hisse": ticker.replace(".IS", ""),
-            "Fiyat": round(fiyat, 2),
-            "Kar(ROE)": f"%{round(roe, 1)}" if roe else "---",
+            "Fiyat": round(display_fiyat, 2),
+            "ROE": f"%{round(roe, 1)}" if roe else "---",
             "Tmtü": f"%{round(div_yield, 1)}" if div_yield else "---",
             "Durum": squeeze,
             "PD/DD": round(pddd, 2) if pddd else 0,
@@ -108,15 +108,14 @@ with c1:
 with c2: 
     st.markdown(f"""
         <div style="background: #1a1c24; border: 1px solid #2d2f39; padding: 7px 12px; border-radius: 8px; height: 68px;">
-            <span style="font-size: 0.8rem; color: #94a3b8; display: block;">Korku Endeksi (VIX)</span>
+            <span style="font-size: 0.8rem; color: #94a3b8; display: block;">VIX Endeksi</span>
             <div style="display: flex; align-items: baseline; gap: 8px; margin-top: 2px;">
                 <span style="font-size: 1.1rem; font-weight: 700; color: white;">{vix_val}</span>
-                <span style="font-size: 0.75rem; color: {vix_color}; font-weight: 600;">{vix_text}</span>
+                <span style="font-size: 0.7rem; color: {vix_color}; font-weight: 600;">{vix_text}</span>
             </div>
         </div>
     """, unsafe_allow_html=True)
-with c3: 
-    st.write(f"⏱️ **{datetime.now().strftime('%H:%M')}**")
+with c3: st.write(f"⏱️ **{datetime.now().strftime('%H:%M')}**")
 with c4:
     currency = st.radio("Birim", ["TL ₺", "USD $"], horizontal=True, label_visibility="collapsed")
     is_usd = True if currency == "USD $" else False
@@ -129,7 +128,7 @@ if is_usd:
     try:
         usd_rate = yf.Ticker("USDTRY=X").history(period="1d")['Close'].iloc[-1]
     except:
-        usd_rate = 34.5 # Fallback kur
+        usd_rate = 34.5 # Fallback
 
 st.divider()
 
@@ -140,7 +139,7 @@ BIST50 = {
     "🏭 Sanayi": ["EREGL.IS", "KARDM.IS", "SISE.IS", "ARCLK.IS", "TOASO.IS", "FROTO.IS"],
     "⚡ Enerji": ["TUPRS.IS", "ENJSA.IS", "ASTOR.IS", "SASA.IS", "KONTR.IS", "AKSEN.IS"],
     "✈️ Ulaştırma": ["THYAO.IS", "PGSUS.IS", "TAVHL.IS"],
-    "🛒 Perakende/Gıda": ["BIMAS.IS", "MGROS.IS", "CCOLA.IS", "AEFES.IS", "ULKER.IS"],
+    "🛒 Perakende": ["BIMAS.IS", "MGROS.IS", "CCOLA.IS", "ULKER.IS"],
     "💻 Teknoloji": ["ASELS.IS", "MIATK.IS", "REEDR.IS", "LOGO.IS"]
 }
 
@@ -149,19 +148,20 @@ tabs = st.tabs(list(BIST50.keys()))
 for i, tab in enumerate(tabs):
     with tab:
         sk_adi = list(BIST50.keys())[i]
-        with st.spinner('Shadow Analiz Modu Aktif...'):
+        with st.spinner(f'{sk_adi} Verileri Alınıyor...'):
             sonuclar = []
             for h in BIST50[sk_adi]:
                 res = fetch_stock_data(h, vade, is_usd, usd_rate)
                 if res: sonuclar.append(res)
-                time.sleep(0.1) # Hız sınırı koruması
+                # ÖNEMLİ: Rate limit yememek için her hisse arasında kısa bir mola
+                time.sleep(0.15) 
             df = pd.DataFrame(sonuclar)
         
         if not df.empty:
             avg_pddd = df['PD/DD'].mean()
-            st.caption(f"📍 {sk_adi} Sektörü PD/DD Ortalaması: **{round(avg_pddd, 2)}** | Para Birimi: {'USD' if is_usd else 'TL'}")
+            st.caption(f"📍 {sk_adi} Ort. PD/DD: **{round(avg_pddd, 2)}** | Para Birimi: {'USD' if is_usd else 'TL'}")
 
-            def highlight_stars(row):
+            def highlight_pro(row):
                 if row['Güven'] >= 80 and row['PD/DD'] < avg_pddd:
                     return ['background-color: #00ff41; color: black; font-weight: bold'] * len(row)
                 elif "SAT" in str(row['Karar']):
@@ -169,7 +169,8 @@ for i, tab in enumerate(tabs):
                 return [''] * len(row)
 
             st.dataframe(
-                df.sort_values("Güven", ascending=False).style.apply(highlight_stars, axis=1), 
-                use_container_width=True, 
-                hide_index=True
+                df.sort_values("Güven", ascending=False).style.apply(highlight_pro, axis=1), 
+                use_container_width=True, hide_index=True
             )
+        else:
+            st.error("Şu an veri çekilemiyor. Yahoo limitlerine takılmış olabiliriz, lütfen 30 sn sonra yenileyin.")
