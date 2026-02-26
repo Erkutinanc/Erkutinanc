@@ -1,11 +1,12 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
+import numpy as np
 from datetime import datetime
 import time
 
 # --- 1. SAYFA AYARLARI ---
-st.set_page_config(page_title="BIST Shadow Elite", layout="wide", page_icon="💎")
+st.set_page_config(page_title="BIST Shadow Elite Pro", layout="wide", page_icon="💎")
 
 st.markdown("""
     <style>
@@ -31,33 +32,50 @@ def analyze_vix(vix):
         return "🚨 YÜKSEK KORKU", "#ef4444"
 
 @st.cache_data(ttl=600)
-def fetch_stock_data(ticker, interval_key):
+def fetch_stock_data(ticker, interval_key, is_usd=False, usd_rate=1.0):
     try:
         t = yf.Ticker(ticker)
         params = {"4 Saatlik": "90m", "Günlük": "1d", "Haftalık": "1wk"}
-        df = t.history(period="1mo" if interval_key == "4 Saatlik" else "1y", interval=params[interval_key])
+        df = t.history(period="1y", interval=params[interval_key])
         
-        if df.empty or len(df) < 5: return None
+        if df.empty or len(df) < 20: return None
         
-        fiyat = df['Close'].iloc[-1]
+        # Temel Fiyat ve USD Çevrimi
+        fiyat_tl = df['Close'].iloc[-1]
+        fiyat = fiyat_tl / usd_rate
+        
+        # Fibonacci Hedefleme (TL bazlı hesaplanıp birime çevrilir)
         high_max = df['High'].max()
         low_min = df['Low'].min()
-        
-        # Fibonacci Hedefleme
         diff = high_max - low_min
-        hedef = high_max + (0.618 * diff) if fiyat > (high_max * 0.95) else high_max
+        hedef_tl = high_max + (0.618 * diff) if fiyat_tl > (high_max * 0.95) else high_max
+        hedef = hedef_tl / usd_rate
         
+        # --- BOLLINGER SIKIŞMASI (SQUEEZE) ---
+        sma20 = df['Close'].rolling(window=20).mean()
+        std20 = df['Close'].rolling(window=20).std()
+        upper_band = sma20 + (2 * std20)
+        lower_band = sma20 - (2 * std20)
+        bw = ((upper_band - lower_band) / sma20).iloc[-1]
+        squeeze = "🎯 SIKIŞMA" if bw < 0.12 else "💎 NORMAL"
+
+        # --- TEMEL VERİLER (ROE & TEMETTÜ) ---
+        info = t.info
+        roe = info.get('returnOnEquity', 0) * 100 
+        div_yield = info.get('dividendYield', 0) * 100 
+        pddd = info.get('priceToBook', 0)
+
         # RSI Gücü
         delta = df['Close'].diff()
         gain = (delta.where(delta > 0, 0)).rolling(14).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
         rsi = 100 - (100 / (1 + (gain.iloc[-1] / (loss.iloc[-1] + 1e-6))))
         
-        # --- TEKNİK DİSİPLİN (5-8-13 ARALIKLI) ---
+        # --- TEKNİK DİSİPLİN (13 EMA) ---
         skor = 0
-        ema13 = df['Close'].ewm(span=13).mean().iloc[-1] # Son kale disiplini
+        ema13 = df['Close'].ewm(span=13).mean().iloc[-1]
         
-        if fiyat > ema13: skor += 50
+        if fiyat_tl > ema13: skor += 50
         if 45 < rsi < 70: skor += 30
         if df['Volume'].iloc[-1] > df['Volume'].tail(10).mean(): skor += 20
         
@@ -70,9 +88,10 @@ def fetch_stock_data(ticker, interval_key):
         return {
             "Hisse": ticker.replace(".IS", ""),
             "Fiyat": round(fiyat, 2),
-            "Hedef": round(hedef, 2),
-            "Potansiyel": f"%{round(((hedef/fiyat)-1)*100, 1)}",
-            "PD/DD": t.info.get('priceToBook', 0),
+            "Kar(ROE)": f"%{round(roe, 1)}" if roe else "---",
+            "Tmtü": f"%{round(div_yield, 1)}" if div_yield else "---",
+            "Durum": squeeze,
+            "PD/DD": round(pddd, 2) if pddd else 0,
             "Karar": karar,
             "Güven": skor
         }
@@ -82,7 +101,7 @@ def fetch_stock_data(ticker, interval_key):
 vix_val = 17.2
 vix_text, vix_color = analyze_vix(vix_val)
 
-c1, c2, c3, c4 = st.columns([1.5, 1.5, 0.8, 2])
+c1, c2, c3, c4, c5 = st.columns([1.2, 1.2, 0.8, 1.2, 1.5])
 
 with c1: 
     st.metric("Piyasa Durumu", "NÖTR-POZİTİF", "0.4%")
@@ -98,8 +117,19 @@ with c2:
     """, unsafe_allow_html=True)
 with c3: 
     st.write(f"⏱️ **{datetime.now().strftime('%H:%M')}**")
-with c4: 
+with c4:
+    currency = st.radio("Birim", ["TL ₺", "USD $"], horizontal=True, label_visibility="collapsed")
+    is_usd = True if currency == "USD $" else False
+with c5: 
     vade = st.select_slider("", options=["4 Saatlik", "Günlük", "Haftalık"], label_visibility="collapsed")
+
+# USD Kuru Çekimi
+usd_rate = 1.0
+if is_usd:
+    try:
+        usd_rate = yf.Ticker("USDTRY=X").history(period="1d")['Close'].iloc[-1]
+    except:
+        usd_rate = 34.5 # Fallback kur
 
 st.divider()
 
@@ -119,17 +149,17 @@ tabs = st.tabs(list(BIST50.keys()))
 for i, tab in enumerate(tabs):
     with tab:
         sk_adi = list(BIST50.keys())[i]
-        with st.spinner('Fırsat Radarı Çalışıyor...'):
+        with st.spinner('Shadow Analiz Modu Aktif...'):
             sonuclar = []
             for h in BIST50[sk_adi]:
-                res = fetch_stock_data(h, vade)
+                res = fetch_stock_data(h, vade, is_usd, usd_rate)
                 if res: sonuclar.append(res)
-                time.sleep(0.1)
+                time.sleep(0.1) # Hız sınırı koruması
             df = pd.DataFrame(sonuclar)
         
         if not df.empty:
             avg_pddd = df['PD/DD'].mean()
-            st.caption(f"📍 {sk_adi} Sektörü PD/DD Ortalaması: **{round(avg_pddd, 2)}**")
+            st.caption(f"📍 {sk_adi} Sektörü PD/DD Ortalaması: **{round(avg_pddd, 2)}** | Para Birimi: {'USD' if is_usd else 'TL'}")
 
             def highlight_stars(row):
                 if row['Güven'] >= 80 and row['PD/DD'] < avg_pddd:
