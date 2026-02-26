@@ -1,6 +1,4 @@
 streamlit
 yfinance
 pandas
-plotly
-feedparser
-requests
+numpy
