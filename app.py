@@ -3,12 +3,11 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 import time
-from datetime import datetime
 
 # --- 1. SAYFA AYARLARI ---
 st.set_page_config(page_title="BIST Shadow Elite Pro", layout="wide", page_icon="💎")
 
-# CSS ile Sekmeleri ve Arayüzü Özelleştirme
+# CSS ile Sekmeleri ve Arayüzü Özelleştirme (Yeşil Vurgu Eklendi)
 st.markdown("""
     <style>
     .stApp { background: #0e1117; color: #ffffff; }
@@ -19,21 +18,17 @@ st.markdown("""
         border: 1px solid #2d2f39 !important;
         border-radius: 8px;
     }
+    /* Aktif ve Önemli Sekmeleri Vurgula */
     button[data-baseweb="tab"]:contains("🔥") {
         color: #00FF00 !important;
         font-weight: bold !important;
         border-bottom-color: #00FF00 !important;
     }
-    .update-text {
-        color: #888888;
-        font-size: 0.9rem;
-        text-align: right;
-    }
     </style>
     """, unsafe_allow_html=True)
 
 # ------------------------------------
-# BIST SEKTÖRLER
+# BIST SEKTÖRLER (Ağırlığı Olanlar 🔥 ile İşaretlendi)
 # ------------------------------------
 BIST_SEKTORLER = {
     "🔥 Banka": ["AKBNK.IS", "GARAN.IS", "ISCTR.IS", "YKBNK.IS", "HALKB.IS", "VAKBN.IS", "TSKB.IS"],
@@ -107,7 +102,54 @@ st.sidebar.title("⚙️ Ayarlar")
 currency = st.sidebar.radio("Para Birimi", ["TL ₺", "USD $"])
 is_usd = True if currency == "USD $" else False
 
-col1, col2 = st.columns([3, 1])
-with col1:
-    st.title("📊 BIST Shadow Elite Pro")
-    st.caption("🔥 simgeli sekmeler piyasa
+st.title("📊 BIST Shadow Elite Pro")
+st.caption("🔥 simgeli sekmeler piyasa ağırlığı yüksek, lokomotif sektörlerdir.")
+
+tabs = st.tabs(list(BIST_SEKTORLER.keys()))
+
+for i, tab in enumerate(tabs):
+    with tab:
+        sec = list(BIST_SEKTORLER.keys())[i]
+        if st.button(f"{sec} Analizini Başlat", key=f"btn_{i}"):
+            results = []
+            with st.spinner(f"{sec} verileri çekiliyor..."):
+                pddd_vals = []
+                for ticker in BIST_SEKTORLER[sec]:
+                    df = fetch_data(ticker, is_usd)
+                    a = analyze_stock(df)
+                    if a:
+                        try:
+                            info = yf.Ticker(ticker).info
+                            pddd = info.get("priceToBook", 0)
+                            if pddd and pddd > 0: pddd_vals.append(pddd)
+                        except: pddd = 0
+                        
+                        results.append({
+                            "Hisse": ticker.replace(".IS", ""),
+                            "Fiyat": round(float(df["Close"].iloc[-1]), 2),
+                            "Karar": a["karar"],
+                            "Durum": a["durum"],
+                            "Fibo Hedef": a["hedef"],
+                            "Tahmini Vade": a["vade"],
+                            "Olasılık": a["olasılık"],
+                            "PD/DD": round(pddd, 2),
+                            "RSI": a["rsi"],
+                            "Güven_G": a["puan"]
+                        })
+                        time.sleep(0.2)
+
+            if results:
+                res_df = pd.DataFrame(results)
+                sec_avg = round(np.mean(pddd_vals), 2) if pddd_vals else 0
+                st.success(f"📊 {sec} Sektörü PD/DD Ortalaması: {sec_avg}")
+                
+                def style_rows(row):
+                    styles = [''] * len(row)
+                    if row['Karar'] == "🚀 GÜÇLÜ AL": styles[row.index.get_loc('Karar')] = 'color: #00FF00; font-weight: bold'
+                    elif row['Karar'] == "🛑 BEKLE": styles[row.index.get_loc('Karar')] = 'color: #FF4B4B; font-weight: bold'
+                    elif row['Karar'] == "🔄 İZLE": styles[row.index.get_loc('Karar')] = 'color: #FFFF00; font-weight: bold'
+                    if row['PD/DD'] < sec_avg: styles[row.index.get_loc('PD/DD')] = 'color: #00FF00'
+                    return styles
+
+                final_df = res_df.sort_values("Güven_G", ascending=False).drop(columns=["Güven_G"])
+                st.dataframe(final_df.style.apply(style_rows, axis=1), use_container_width=True, hide_index=True)
