@@ -40,9 +40,8 @@ BIST_SEKTORLER = {
 # ------------------------------------
 def fetch_data(ticker, is_usd=False, usd_rate=1.0):
     try:
-        # Veriyi çekerken hata riskini azaltmak için 1 yıllık güncellik
         df = yf.download(ticker, period="1y", interval="1d", progress=False)
-        if df is None or df.empty or len(df) < 25: 
+        if df is None or df.empty or len(df) < 50: 
             return None
         df.dropna(inplace=True)
         if is_usd:
@@ -53,46 +52,56 @@ def fetch_data(ticker, is_usd=False, usd_rate=1.0):
         return None
 
 # ------------------------------------
-# TEKNİK ANALİZ MOTORU (Hata Düzeltilmiş Sürüm)
+# TEKNİK ANALİZ MOTORU + FIBONACCI PROJEKSİYONU
 # ------------------------------------
 def analyze_stock(df):
     try:
         close = df["Close"]
-        # RSI
+        high_max = df["High"].max()
+        low_min = df["Low"].min()
+        fiyat = float(close.iloc[-1])
+        
+        # RSI Hesaplama
         delta = close.diff()
         gain = (delta.where(delta > 0, 0)).rolling(14).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
-        rsi_series = 100 - (100 / (1 + (gain / (loss + 1e-6))))
-        rsi_val = float(rsi_series.iloc[-1])
+        rsi_val = float((100 - (100 / (1 + (gain / (loss + 1e-6))))).iloc[-1])
         
-        # Bollinger & Sıkışma (Hata burada düzeltildi)
+        # Fibonacci Hedefleri (Trend Uzatma 1.618)
+        diff = high_max - low_min
+        hedef_fibo = high_max + (diff * 0.618) if fiyat > low_min + (diff * 0.5) else high_max
+        
+        # Zaman ve Olasılık Tahmini
+        # Volatilite üzerinden hedefe uzaklık analizi
+        daily_ret = close.pct_change().std() 
+        dist_to_target = abs(hedef_fibo - fiyat) / fiyat
+        est_days = int(dist_to_target / (daily_ret + 1e-6))
+        
+        # Olasılık Skoru (RSI ve EMA uyumuna göre)
+        ema13 = float(close.ewm(span=13).mean().iloc[-1])
+        prob_score = 0
+        if 45 < rsi_val < 70: prob_score += 40
+        if fiyat > ema13: prob_score += 40
+        if rsi_val > 70: prob_score -= 20 # Aşırı alım risk düşürür
+        
+        # Bollinger Sıkışma
         sma20 = close.rolling(20).mean()
         std20 = close.rolling(20).std()
-        upper = sma20 + (2 * std20)
-        lower = sma20 - (2 * std20)
+        width = float(((sma20 + 2*std20) - (sma20 - 2*std20)) / sma20).iloc[-1]
+        squeeze = "🎯 SIKIŞMA" if width < 0.12 else "💎 NORMAL"
         
-        # Width değerini skaler bir sayıya zorluyoruz (.item() veya float())
-        width_series = (upper - lower) / sma20
-        last_width = float(width_series.iloc[-1])
+        karar = "🚀 GÜÇLÜ AL" if (fiyat > ema13 and prob_score >= 60) else "🔄 İZLE"
         
-        # Sıkışma kontrolü
-        squeeze = "🎯 SIKIŞMA" if last_width < 0.12 else "💎 NORMAL"
-
-        # EMA 13 (Selçuk Gönençer)
-        ema13_series = close.ewm(span=13).mean()
-        ema13_val = float(ema13_series.iloc[-1])
-        fiyat = float(close.iloc[-1])
-        
-        # Karar Mekanizması
-        puan = 0
-        if fiyat > ema13_val: puan += 50
-        if 40 < rsi_val < 70: puan += 30
-        if last_width < 0.12: puan += 20
-        
-        karar = "🚀 GÜÇLÜ AL" if puan >= 80 else "🔄 İZLE" if puan >= 50 else "🛑 BEKLE"
-        return round(rsi_val, 2), squeeze, karar, puan
+        return {
+            "rsi": round(rsi_val, 2),
+            "squeeze": squeeze,
+            "karar": karar,
+            "hedef": round(hedef_fibo, 2),
+            "vade": f"{max(5, est_days)}-{est_days+10} Gün",
+            "olasılık": f"%{min(95, 40 + prob_score)}"
+        }
     except:
-        return 0.0, "⚠️ VERİ HATASI", "BELİRSİZ", 0
+        return None
 
 # ---------------------------------------------------
 # STREAMLIT ARAYÜZÜ
@@ -101,16 +110,14 @@ st.sidebar.title("⚙️ Ayarlar")
 currency = st.sidebar.radio("Para Birimi", ["TL ₺", "USD $"])
 is_usd = True if currency == "USD $" else False
 
-# USD Kuru
 usd_rate = 1.0
 if is_usd:
     try:
         usd_data = yf.download("USDTRY=X", period="1d", progress=False)
         usd_rate = float(usd_data['Close'].iloc[-1])
-    except:
-        usd_rate = 34.50
+    except: usd_rate = 34.50
 
-st.title("📊 BIST Shadow Elite Pro")
+st.title("📊 BIST Shadow Elite: Hedef Tahmin Terminali")
 
 tabs = st.tabs(list(BIST_SEKTORLER.keys()))
 
@@ -118,34 +125,33 @@ for i, tab in enumerate(tabs):
     with tab:
         sector_name = list(BIST_SEKTORLER.keys())[i]
         results = []
-        if st.button(f"{sector_name} Sektörünü Tara", key=f"btn_{i}"):
-            with st.spinner(f"{sector_name} taranıyor..."):
+        if st.button(f"{sector_name} Sektörünü Analiz Et", key=f"btn_{i}"):
+            with st.spinner(f"Fibonacci ve Zaman Projeksiyonu hesaplanıyor..."):
                 for ticker in BIST_SEKTORLER[sector_name]:
                     df = fetch_data(ticker, is_usd, usd_rate)
-                    if df is not None:
-                        rsi, squeeze, karar, puan = analyze_stock(df)
-                        # Temel Veriler
+                    analysis = analyze_stock(df) if df is not None else None
+                    
+                    if analysis:
                         try:
                             info = yf.Ticker(ticker).info
                             pddd = info.get("priceToBook", 0)
-                            roe = info.get("returnOnEquity", 0) * 100
-                        except:
-                            pddd, roe = 0, 0
+                        except: pddd = 0
                         
                         results.append({
                             "Hisse": ticker.replace(".IS", ""),
                             "Fiyat": round(float(df["Close"].iloc[-1]), 2),
-                            "Karar": karar,
-                            "Durum": squeeze,
-                            "ROE %": f"%{round(roe, 1)}",
-                            "PD/DD": round(pddd, 2),
-                            "RSI": rsi,
-                            "Güven": puan
+                            "Hedef (Fibo)": analysis["hedef"],
+                            "Tahmini Vade": analysis["vade"],
+                            "Olasılık": analysis["olasılık"],
+                            "Sinyal": analysis["karar"],
+                            "Durum": analysis["squeeze"],
+                            "RSI": analysis["rsi"],
+                            "PD/DD": round(pddd, 2)
                         })
                         time.sleep(0.1) 
 
             if results:
                 res_df = pd.DataFrame(results)
-                st.dataframe(res_df.sort_values("Güven", ascending=False), use_container_width=True, hide_index=True)
+                st.dataframe(res_df.sort_values("Olasılık", ascending=False), use_container_width=True, hide_index=True)
             else:
-                st.warning("Veri çekilemedi. Lütfen internet bağlantısını kontrol edin veya biraz bekleyin.")
+                st.warning("Veri çekilemedi, lütfen tekrar deneyin.")
