@@ -11,23 +11,22 @@ st.set_page_config(page_title="BIST Shadow Elite Pro", layout="wide", page_icon=
 st.markdown("""
     <style>
     .stApp { background: #0e1117; color: #ffffff; }
-    button[data-baseweb="tab"]:contains("🔥") {
-        color: #00FF00 !important;
-        font-weight: bold !important;
-    }
-    /* Saat fontunu küçült ve yukarı hizala */
-    .update-text { color: #888888; font-size: 0.75rem !important; text-align: right; margin-bottom: 0px; }
+    button[data-baseweb="tab"]:contains("🔥") { color: #00FF00 !important; font-weight: bold !important; }
     
-    /* Fırsat kutucuklarını (Box) küçültme */
+    /* Saat fontu ve yerleşimi */
+    .update-text { color: #888888; font-size: 0.8rem !important; text-align: right; margin-bottom: -10px; }
+    
+    /* Fırsat kutucukları (Küçültülmüş) */
     .firsat-box {
         background: #1a1c24;
         border: 1px solid #00FF00;
         border-radius: 8px;
-        padding: 6px 10px;
+        padding: 5px 10px;
         text-align: center;
+        margin-bottom: 5px;
     }
-    .firsat-hisse { color: #00FF00; font-size: 0.95rem !important; font-weight: bold; margin: 0; }
-    .firsat-detay { font-size: 0.75rem !important; margin: 0; color: #cccccc; }
+    .firsat-hisse { color: #00FF00; font-size: 1rem !important; font-weight: bold; margin: 0; }
+    .firsat-detay { font-size: 0.8rem !important; margin: 0; color: #cccccc; }
     
     .stProgress > div > div > div > div { height: 8px !important; }
     </style>
@@ -94,17 +93,20 @@ st.sidebar.title("⚙️ Ayarlar")
 para_birimi = st.sidebar.radio("Para Birimi", ["TL ₺", "USD $"])
 is_usd = para_birimi == "USD $"
 
+# Kur bilgisini çek
 usd_rate = 1.0
 if is_usd:
     try:
         usd_rate = float(yf.download("USDTRY=X", period="1d", progress=False)['Close'].iloc[-1])
     except: usd_rate = 34.50
 
-col1, col2 = st.columns([3, 1])
-with col1:
-    st.title("📊 BIST Shadow Elite Pro")
-with col2:
-    time_placeholder = st.empty()
+# Sayfa başlığı ve Saat Alanı
+col_t1, col_t2 = st.columns([3, 1])
+with col_t1:
+    st.subheader("📊 BIST Shadow Elite Pro")
+with col_t2:
+    # SAAT BURADA: Her buton basıldığında güncellenecek placeholder
+    time_display = st.empty()
 
 tabs = st.tabs(list(BIST_SEKTORLER.keys()))
 
@@ -112,11 +114,12 @@ for i, tab in enumerate(tabs):
     with tab:
         sec = list(BIST_SEKTORLER.keys())[i]
         if st.button(f"{sec} Analizini Başlat", key=f"btn_{i}"):
-            # Saat anlık burada güncelleniyor
-            time_placeholder.markdown(f"<p class='update-text'>⏱️ {datetime.now().strftime('%H:%M:%S')}</p>", unsafe_allow_html=True)
+            # SAATİ GÜNCELLE
+            now = datetime.now().strftime('%H:%M:%S')
+            time_display.markdown(f"<p class='update-text'>⏱️ Son Tarama: {now}</p>", unsafe_allow_html=True)
             
             results = []
-            with st.spinner("Piyasa taranıyor..."):
+            with st.spinner(f"{sec} taranıyor..."):
                 pddd_vals = []
                 for ticker in BIST_SEKTORLER[sec]:
                     df = fetch_data(ticker, is_usd, usd_rate)
@@ -131,7 +134,7 @@ for i, tab in enumerate(tabs):
                             "Tahmini Vade": a["vade"], "Olasılık": a["olasılık"], "PD/DD": round(pddd, 2),
                             "RSI": a["rsi"], "Puan_Gizli": a["puan"]
                         })
-                        time.sleep(0.1)
+                        time.sleep(0.05)
 
             if results:
                 res_df = pd.DataFrame(results)
@@ -139,10 +142,10 @@ for i, tab in enumerate(tabs):
                 
                 # Sektör İştahı
                 al_orani = len(res_df[res_df["Karar"] == "🚀 GÜÇLÜ AL"]) / len(res_df)
-                st.write(f"📈 **Sektör Alım İştahı**")
+                st.caption(f"📈 Sektör Alım İştahı")
                 st.progress(al_orani)
                 
-                # Yıldız Fırsatlar (Küçültülmüş)
+                # Yıldız Fırsatlar (Küçültüldü)
                 st.markdown("##### 🌟 Sektör Fırsatları")
                 firsatlar = res_df[(res_df["PD/DD"] < sec_avg) & (res_df["Karar"] == "🚀 GÜÇLÜ AL")].sort_values("Puan_Gizli", ascending=False)
                 if not firsatlar.empty:
@@ -151,7 +154,7 @@ for i, tab in enumerate(tabs):
                         birim = "$" if is_usd else "₺"
                         f_cols[idx].markdown(f"""<div class='firsat-box'><p class='firsat-hisse'>{row['Hisse']}</p><p class='firsat-detay'>{row['Fibo Hedef']} {birim}</p><p class='firsat-detay'>{row['Durum']}</p></div>""", unsafe_allow_html=True)
                 
-                # Renkli Tablo Geri Geldi
+                # RENKLİ TABLO (Eski sevdiğin hali)
                 st.divider()
                 def style_rows(row):
                     styles = [''] * len(row)
@@ -161,4 +164,4 @@ for i, tab in enumerate(tabs):
                     return styles
 
                 st.dataframe(res_df.sort_values("Puan_Gizli", ascending=False).drop(columns=["Puan_Gizli"]).style.apply(style_rows, axis=1), use_container_width=True, hide_index=True)
-                st.info(f"📊 {sec} PD/DD Ortalaması: {sec_avg}")
+                st.info(f"📊 {sec} PD/DD Ortalaması: {sec_avg} | Birim: {para_birimi}")
