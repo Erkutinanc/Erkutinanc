@@ -2,10 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import yfinance as yf
-import plotly.graph_objects as go
-from datetime import datetime
 import time
-from plotly.subplots import make_subplots
 
 # --- 1. SAYFA AYARLARI ---
 st.set_page_config(page_title="BIST Shadow Elite Pro", layout="wide", page_icon="💎")
@@ -27,160 +24,127 @@ st.markdown("""
 # BIST SEKTÖRLER VE LİSTE
 # ------------------------------------
 BIST_SEKTORLER = {
-     "🏦 Banka": ["AKBNK.IS", "GARAN.IS", "ISCTR.IS", "YKBNK.IS", "HALKB.IS", "VAKBN.IS", "DSTKF.IS", "TSKB.IS"],
+    "🏦 Banka": ["AKBNK.IS", "GARAN.IS", "ISCTR.IS", "YKBNK.IS", "HALKB.IS", "VAKBN.IS", "TSKB.IS"],
     "🏢 Holding": ["KCHOL.IS", "SAHOL.IS", "ALARK.IS", "DOHOL.IS"],
     "🏭 Sanayi": ["EREGL.IS", "KARDM.IS", "SISE.IS", "ARCLK.IS", "BRSAN.IS"],
     "⚡ Enerji": ["TUPRS.IS", "ENJSA.IS", "ASTOR.IS", "SASA.IS", "KONTR.IS", "PETKM.IS"],
-    "✈️ Ulaştırma": ["THYAO.IS", "PGSUS.IS", "TAVHL.IS", "PASEU.IS"],
-    "🛒 Perakende": ["BIMAS.IS", "MGROS.IS", "CCOLA.IS", "AEFES.IS", "SOKM.IS", "ULKER.IS", "MAVI.IS"],
-    "🏗️ İnşaat ve Çimento": ["BTCIM.IS", "CIMSA.IS", "OYAKC.IS", "EKGYO.IS", "ENKAI.IS", "KUYAS.IS"],
+    "✈️ Ulaştırma": ["THYAO.IS", "PGSUS.IS", "TAVHL.IS"],
+    "🛒 Perakende": ["BIMAS.IS", "MGROS.IS", "CCOLA.IS", "SOKM.IS", "ULKER.IS"],
+    "🏗️ İnşaat": ["BTCIM.IS", "CIMSA.IS", "OYAKC.IS", "EKGYO.IS"],
     "🚗 Otomotiv": ["FROTO.IS", "DOAS.IS", "TOASO.IS"],
     "💻 Teknoloji": ["ASELS.IS", "MIATK.IS"],
-    "📱 İletişim": ["TCELL.IS", "TTKOM.IS"],
-    "⛏️ Maden": ["TRALT.IS", "KCAER.IS"],
-    "🌱 Tarım": ["GUBRF.IS", "HEKTS.IS"],
+    "📱 İletişim": ["TCELL.IS", "TTKOM.IS"]
 }
 
 # ------------------------------------
-# VERİ ÇEKME VE USD DÖNÜŞÜMÜ
+# VERİ ÇEKME VE ANALİZ
 # ------------------------------------
 def fetch_data(ticker, is_usd=False, usd_rate=1.0):
     try:
         df = yf.download(ticker, period="1y", interval="1d", progress=False)
-        if df is None or df.empty or len(df) < 25: 
-            return None
+        if df is None or df.empty or len(df) < 30: return None
         df.dropna(inplace=True)
         if is_usd:
-            for col in ['Open', 'High', 'Low', 'Close']:
-                df[col] = df[col] / usd_rate
+            for col in ['Open', 'High', 'Low', 'Close']: df[col] = df[col] / usd_rate
         return df
-    except:
-        return None
+    except: return None
 
-# ------------------------------------
-# TEKNİK ANALİZ MOTORU
-# ------------------------------------
 def analyze_stock(df):
     try:
         close = df["Close"]
+        fiyat = float(close.iloc[-1])
+        
+        # RSI
         delta = close.diff()
         gain = (delta.where(delta > 0, 0)).rolling(14).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
-        rsi_series = 100 - (100 / (1 + (gain / (loss + 1e-6))))
-        rsi_val = float(rsi_series.iloc[-1])
+        rsi_val = float((100 - (100 / (1 + (gain / (loss + 1e-6))))).iloc[-1])
         
-        sma20 = close.rolling(20).mean()
-        std20 = close.rolling(20).std()
-        upper = sma20 + (2 * std20)
-        lower = sma20 - (2 * std20)
-        width_series = (upper - lower) / sma20
-        last_width = float(width_series.iloc[-1])
+        # Fibonacci Hedefi (1.618 Uzatma)
+        high_1y = float(df["High"].max())
+        low_1y = float(df["Low"].min())
+        hedef_fibo = high_1y + ((high_1y - low_1y) * 0.618)
         
-        squeeze = "🎯 SIKIŞMA" if last_width < 0.12 else "💎 NORMAL"
-
-        ema13_series = close.ewm(span=13).mean()
-        ema13_val = float(ema13_series.iloc[-1])
-        fiyat = float(close.iloc[-1])
+        # Zaman Tahmini (Volatilite Bazlı)
+        daily_vol = close.pct_change().std()
+        dist_pct = (hedef_fibo - fiyat) / fiyat
+        est_days = int(abs(dist_pct) / (daily_vol + 1e-6))
         
+        # Olasılık Skoru
+        ema13 = float(close.ewm(span=13).mean().iloc[-1])
         puan = 0
-        if fiyat > ema13_val: puan += 50
-        if 40 < rsi_val < 70: puan += 30
-        if last_width < 0.12: puan += 20
+        if fiyat > ema13: puan += 50
+        if 45 < rsi_val < 70: puan += 30
         
-        if puan >= 80:
-            karar = "🚀 GÜÇLÜ AL"
-        elif puan >= 50:
-            karar = "🔄 İZLE"
-        else:
-            karar = "🛑 BEKLE"
-            
-        return round(rsi_val, 2), squeeze, karar, puan
-    except:
-        return 0.0, "⚠️ VERİ HATASI", "BELİRSİZ", 0
+        # Karar ve Renk
+        if puan >= 80: karar = "🚀 GÜÇLÜ AL"
+        elif puan >= 50: karar = "🔄 İZLE"
+        else: karar = "🛑 BEKLE"
+        
+        return {
+            "rsi": round(rsi_val, 2),
+            "hedef": round(hedef_fibo, 2),
+            "vade": f"{max(5, est_days)}-{est_days+15} Gün",
+            "olasılık": f"%{min(95, 40 + puan)}",
+            "karar": karar,
+            "puan": puan
+        }
+    except: return None
 
-# ---------------------------------------------------
-# RENKLENDİRME FONKSİYONLARI
-# ---------------------------------------------------
-def highlight_signal(val):
-    color = '#ffffff'
-    if val == "🚀 GÜÇLÜ AL":
-        color = '#00FF00' # Yeşil
-    elif val == "🛑 BEKLE":
-        color = '#FF4B4B' # Kırmızı
-    elif val == "🔄 İZLE":
-        color = '#FFFF00' # Sarı
-    return f'color: {color}; font-weight: bold'
-
-def highlight_pddd(val, avg):
-    # Eğer PD/DD sektör ortalamasından düşükse yeşil, yüksekse beyaz
-    color = '#00FF00' if val < avg else '#ffffff'
-    return f'color: {color}'
-
-# ---------------------------------------------------
-# STREAMLIT ARAYÜZÜ
-# ---------------------------------------------------
+# ------------------------------------
+# ARAYÜZ
+# ------------------------------------
 st.sidebar.title("⚙️ Ayarlar")
 currency = st.sidebar.radio("Para Birimi", ["TL ₺", "USD $"])
 is_usd = True if currency == "USD $" else False
 
-usd_rate = 1.0
-if is_usd:
-    try:
-        usd_data = yf.download("USDTRY=X", period="1d", progress=False)
-        usd_rate = float(usd_data['Close'].iloc[-1])
-    except:
-        usd_rate = 34.50
-
 st.title("📊 BIST Shadow Elite Pro")
-
 tabs = st.tabs(list(BIST_SEKTORLER.keys()))
 
 for i, tab in enumerate(tabs):
     with tab:
-        sector_name = list(BIST_SEKTORLER.keys())[i]
-        results = []
-        
-        if st.button(f"{sector_name} Sektörünü Tara", key=f"btn_{i}"):
-            with st.spinner(f"{sector_name} taranıyor..."):
-                sector_pddd_list = []
-                
-                for ticker in BIST_SEKTORLER[sector_name]:
-                    df = fetch_data(ticker, is_usd, usd_rate)
-                    if df is not None:
-                        rsi, squeeze, karar, puan = analyze_stock(df)
+        sec = list(BIST_SEKTORLER.keys())[i]
+        if st.button(f"{sec} Sektörünü Tara", key=f"btn_{i}"):
+            results = []
+            with st.spinner("Fibonacci ve Zaman Projeksiyonu hesaplanıyor..."):
+                pddd_vals = []
+                for ticker in BIST_SEKTORLER[sec]:
+                    df = fetch_data(ticker, is_usd)
+                    analysis = analyze_stock(df)
+                    if analysis:
                         try:
-                            # Ticker bilgisini çekiyoruz
-                            t_obj = yf.Ticker(ticker)
-                            info = t_obj.info
+                            info = yf.Ticker(ticker).info
                             pddd = info.get("priceToBook", 0)
-                            roe = info.get("returnOnEquity", 0) * 100
-                            if pddd and pddd > 0: sector_pddd_list.append(pddd)
-                        except:
-                            pddd, roe = 0, 0
+                            if pddd > 0: pddd_vals.append(pddd)
+                        except: pddd = 0
                         
                         results.append({
                             "Hisse": ticker.replace(".IS", ""),
                             "Fiyat": round(float(df["Close"].iloc[-1]), 2),
-                            "Karar": karar,
-                            "Durum": squeeze,
-                            "ROE %": f"%{round(roe, 1)}",
+                            "Fibo Hedef": analysis["hedef"],
+                            "Tahmini Vade": analysis["vade"],
+                            "Olasılık": analysis["olasılık"],
+                            "Karar": analysis["karar"],
                             "PD/DD": round(pddd, 2),
-                            "RSI": rsi,
-                            "Güven": puan
+                            "RSI": analysis["rsi"],
+                            "Güven": analysis["puan"]
                         })
-                        time.sleep(0.05) 
+                        time.sleep(0.1)
 
             if results:
                 res_df = pd.DataFrame(results)
-                sec_avg = round(np.mean(sector_pddd_list), 2) if sector_pddd_list else 0
+                sec_avg = round(np.mean(pddd_vals), 2) if pddd_vals else 0
+                st.info(f"📊 {sec} Sektörü PD/DD Ortalaması: {sec_avg}")
                 
-                st.info(f"📊 **{sector_name}** Sektörü PD/DD Ortalaması: **{sec_avg}**")
-                
-                # Dinamik Renklendirme Uygulama
-                styled_df = res_df.sort_values("Güven", ascending=False).style\
-                    .applymap(highlight_signal, subset=['Karar'])\
-                    .applymap(lambda x: highlight_pddd(x, sec_avg), subset=['PD/DD'])
-                
-                st.dataframe(styled_df, use_container_width=True, hide_index=True)
-            else:
-                st.warning("Veri çekilemedi. Lütfen internet bağlantısını kontrol edin.")
+                # Renklendirme
+                def style_logic(row):
+                    styles = [''] * len(row)
+                    # Karar Renklendirme
+                    if row['Karar'] == "🚀 GÜÇLÜ AL": styles[row.index.get_loc('Karar')] = 'color: #00FF00; font-weight: bold'
+                    elif row['Karar'] == "🛑 BEKLE": styles[row.index.get_loc('Karar')] = 'color: #FF4B4B; font-weight: bold'
+                    elif row['Karar'] == "🔄 İZLE": styles[row.index.get_loc('Karar')] = 'color: #FFFF00; font-weight: bold'
+                    # PD/DD Renklendirme (Ortalama Altı Yeşil)
+                    if row['PD/DD'] < sec_avg: styles[row.index.get_loc('PD/DD')] = 'color: #00FF00'
+                    return styles
+
+                st.dataframe(res_df.style.apply(style_logic, axis=1), use_container_width=True, hide_index=True)
