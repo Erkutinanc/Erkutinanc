@@ -33,7 +33,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ------------------------------------
-# SEKTÖRLER
+# SEKTÖRLER (Tam Liste)
 # ------------------------------------
 BIST_SEKTORLER = {
     "🏦 Banka": ["AKBNK.IS", "GARAN.IS", "ISCTR.IS", "YKBNK.IS", "HALKB.IS", "VAKBN.IS", "DSTKF.IS", "TSKB.IS"],
@@ -68,6 +68,9 @@ def analyze_stock(df):
     try:
         close = df["Close"]
         fiyat = float(close.iloc[-1])
+        # Günlük Değişim (Güç Endeksi için)
+        gunluk_degisim = ((fiyat - float(close.iloc[-2])) / float(close.iloc[-2])) * 100
+        
         # Teknik İndikatörler
         delta = close.diff()
         gain = (delta.where(delta > 0, 0)).rolling(14).mean()
@@ -83,7 +86,6 @@ def analyze_stock(df):
         hedef_fibo = high_1y + ((high_1y - low_1y) * 0.618)
         
         ema13 = float(close.ewm(span=13).mean().iloc[-1])
-        # STOP-LOSS HESABI: EMA13 altı veya son 5 günün en düşüğünün %2 altı
         stop_loss = min(ema13, float(df["Low"].iloc[-5:].min()) * 0.98)
         
         vol = close.pct_change().std()
@@ -99,7 +101,7 @@ def analyze_stock(df):
             "rsi": round(rsi_val, 2), "hedef": round(hedef_fibo, 2), 
             "vade": f"{max(5, est_days)}-{est_days+12} G", "olasılık": f"%{min(95, 40 + puan)}", 
             "karar": karar, "durum": "🎯 SIKIŞMA" if is_squeeze else "💎 NORMAL", 
-            "puan": puan, "stop": round(stop_loss, 2)
+            "puan": puan, "stop": round(stop_loss, 2), "degisim": gunluk_degisim
         }
     except: return None
 
@@ -140,14 +142,23 @@ for i, tab in enumerate(tabs):
                             "Hisse": ticker.replace(".IS", ""), "Fiyat": round(float(df["Close"].iloc[-1]), 2),
                             "Karar": a["karar"], "Durum": a["durum"], "Fibo Hedef": a["hedef"],
                             "Stop-Loss": a["stop"], "Tahmini Vade": a["vade"], "Olasılık": a["olasılık"], 
-                            "PD/DD": round(pddd, 2), "RSI": a["rsi"], "Puan": a["puan"]
+                            "PD/DD": round(pddd, 2), "RSI": a["rsi"], "Puan": a["puan"], "D": a["degisim"]
                         })
                         time.sleep(0.05)
 
             if results:
                 res_df = pd.DataFrame(results)
-                sec_avg = round(np.mean(pddd_vals), 2) if pddd_vals else 0
+                sec_avg_pddd = round(np.mean(pddd_vals), 2) if pddd_vals else 0
+                sec_avg_degisim = res_df["D"].mean() # Sektörün ortalama performansı
                 
+                # --- GÜÇ ENDEKSİ VE LİDERLİK HESABI ---
+                def calculate_strength(row):
+                    symbol = " ⬆️" if row['D'] > sec_avg_degisim else " ⬇️"
+                    leader = " ⚡" if row['D'] > sec_avg_degisim and row['Puan'] >= 80 else ""
+                    return f"{row['Hisse']}{symbol}{leader}"
+
+                res_df["Hisse"] = res_df.apply(calculate_strength, axis=1)
+
                 # --- 1. RADAR BİLDİRİMİ ---
                 radar_hisse = res_df[res_df["Puan"] == res_df["Puan"].max()].iloc[0]
                 st.markdown(f"""
@@ -162,7 +173,7 @@ for i, tab in enumerate(tabs):
                 
                 # --- FIRSATLAR ---
                 st.markdown("##### 🌟 Sektör Fırsatları")
-                firsatlar = res_df[(res_df["PD/DD"] < sec_avg) & (res_df["Karar"] == "🚀 GÜÇLÜ AL")].sort_values("Puan", ascending=False)
+                firsatlar = res_df[(res_df["PD/DD"] < sec_avg_pddd) & (res_df["Karar"] == "🚀 GÜÇLÜ AL")].sort_values("Puan", ascending=False)
                 if not firsatlar.empty:
                     f_cols = st.columns(min(len(firsatlar), 4))
                     for idx, (_, row) in enumerate(firsatlar[:4].iterrows()):
@@ -175,8 +186,9 @@ for i, tab in enumerate(tabs):
                     styles = [''] * len(row)
                     if row['Karar'] == "🚀 GÜÇLÜ AL": styles[row.index.get_loc('Karar')] = 'color: #00FF00; font-weight: bold'
                     if row['Stop-Loss'] > 0: styles[row.index.get_loc('Stop-Loss')] = 'color: #FF4B4B;'
-                    if row['PD/DD'] < sec_avg: styles[row.index.get_loc('PD/DD')] = 'color: #00FF00'
+                    if row['PD/DD'] < sec_avg_pddd: styles[row.index.get_loc('PD/DD')] = 'color: #00FF00'
                     return styles
 
-                st.dataframe(res_df.sort_values("Puan", ascending=False).drop(columns=["Puan"]).style.apply(style_rows, axis=1), use_container_width=True, hide_index=True)
-                st.info(f"📊 {sec} PD/DD Ortalaması: {sec_avg}")
+                # Tabloyu gösterirken geçici sütunu (D) atıyoruz
+                st.dataframe(res_df.sort_values("Puan", ascending=False).drop(columns=["Puan", "D"]).style.apply(style_rows, axis=1), use_container_width=True, hide_index=True)
+                st.info(f"📊 {sec} PD/DD Ortalaması: {sec_avg_pddd} | Sektör Ort. Değişim: %{sec_avg_degisim:.2f}")
