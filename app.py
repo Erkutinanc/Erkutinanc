@@ -27,13 +27,18 @@ st.markdown("""
 # BIST SEKTÖRLER VE LİSTE
 # ------------------------------------
 BIST_SEKTORLER = {
-     "🏦 Banka": ["AKBNK.IS", "GARAN.IS", "ISCTR.IS", "YKBNK.IS", "HALKB.IS", "VAKBN.IS"],
-    "🏢 Holding": ["KCHOL.IS", "SAHOL.IS", "ALARK.IS", "DOHOL.IS", "AGHOL.IS"],
-    "🏭 Sanayi": ["EREGL.IS", "KARDM.IS", "SISE.IS", "ARCLK.IS", "TOASO.IS", "FROTO.IS"],
-    "⚡ Enerji": ["TUPRS.IS", "ENJSA.IS", "ASTOR.IS", "SASA.IS", "KONTR.IS", "AKSEN.IS"],
-    "✈️ Ulaştırma": ["THYAO.IS", "PGSUS.IS", "TAVHL.IS"],
-    "🛒 Perakende/Gıda": ["BIMAS.IS", "MGROS.IS", "CCOLA.IS", "AEFES.IS", "ULKER.IS"],
-    "💻 Teknoloji": ["ASELS.IS", "MIATK.IS", "REEDR.IS", "LOGO.IS"]
+     "🏦 Banka": ["AKBNK.IS", "GARAN.IS", "ISCTR.IS", "YKBNK.IS", "HALKB.IS", "VAKBN.IS", "DSTKF.IS", "TSKB.IS"],
+    "🏢 Holding": ["KCHOL.IS", "SAHOL.IS", "ALARK.IS", "DOHOL.IS"],
+    "🏭 Sanayi": ["EREGL.IS", "KARDM.IS", "SISE.IS", "ARCLK.IS", "BRSAN.IS"],
+    "⚡ Enerji": ["TUPRS.IS", "ENJSA.IS", "ASTOR.IS", "SASA.IS", "KONTR.IS", "PETKM.IS"],
+    "✈️ Ulaştırma": ["THYAO.IS", "PGSUS.IS", "TAVHL.IS", "PASEU.IS"],
+    "🛒 Perakende": ["BIMAS.IS", "MGROS.IS", "CCOLA.IS", "AEFES.IS", "SOKM.IS", "ULKER.IS", "MAVI.IS"],
+    "🏗️ İnşaat ve Çimento": ["BTCIM.IS", "CIMSA.IS", "OYAKC.IS", "EKGYO.IS", "ENKAI.IS", "KUYAS.IS"],
+    "🚗 Otomotiv": ["FROTO.IS", "DOAS.IS", "TOASO.IS"],
+    "💻 Teknoloji": ["ASELS.IS", "MIATK.IS"],
+    "📱 İletişim": ["TCELL.IS", "TTKOM.IS"],
+    "⛏️ Maden": ["TRALT.IS", "KCAER.IS"],
+    "🌱 Tarım": ["GUBRF.IS", "HEKTS.IS"],
 }
 
 # ------------------------------------
