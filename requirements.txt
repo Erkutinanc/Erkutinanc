@@ -2,3 +2,7 @@ streamlit
 yfinance
 pandas
 numpy
+plotly
+torch
+transformers
+requests
