@@ -48,12 +48,17 @@ BIST_SEKTORLER = {
 # ------------------------------------
 # ANALİZ MOTORU
 # ------------------------------------
-def fetch_data(ticker):
+def fetch_data(ticker, is_usd=False, usd_rate=1.0):
     try:
         df = yf.download(ticker, period="1y", interval="1d", progress=False, threads=False)
         if df is None or df.empty or len(df) < 35: return None
         df.dropna(inplace=True)
         if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
+        
+        # USD Dönüşümü
+        if is_usd:
+            for col in ['Open', 'High', 'Low', 'Close']:
+                df[col] = df[col] / usd_rate
         return df
     except: return None
 
@@ -92,12 +97,25 @@ def analyze_stock(df):
     except: return None
 
 # ------------------------------------
-# ARAYÜZ
+# ARAYÜZ VE AYARLAR
 # ------------------------------------
+st.sidebar.title("⚙️ Terminal Ayarları")
+para_birimi = st.sidebar.radio("Para Birimi Seçin", ["TL ₺", "USD $"])
+is_usd = para_birimi == "USD $"
+
+# Canlı USD Kuru Çekimi
+usd_rate = 1.0
+if is_usd:
+    try:
+        usd_data = yf.download("USDTRY=X", period="1d", progress=False)
+        usd_rate = float(usd_data['Close'].iloc[-1])
+    except:
+        usd_rate = 34.50 # Hata durumunda fallback
+
 col1, col2 = st.columns([3, 1])
 with col1:
     st.title("📊 BIST Shadow Elite Pro")
-    st.caption("Fırsat Skoru: Sıkışma + Düşük PD/DD + RSI Uyumu")
+    st.caption(f"Fırsat Skoru: Sıkışma + Düşük PD/DD + RSI Uyumu | Birim: {para_birimi}")
 with col2:
     time_placeholder = st.empty()
 
@@ -109,39 +127,56 @@ for i, tab in enumerate(tabs):
         if st.button(f"{sec} Analizini Başlat", key=f"btn_{i}"):
             time_placeholder.markdown(f"<p class='update-text'>⏱️ {datetime.now().strftime('%H:%M:%S')}</p>", unsafe_allow_html=True)
             results = []
-            with st.spinner("Piyasa iştahı ölçülüyor..."):
+            with st.spinner(f"{sec} verileri {para_birimi} bazında analiz ediliyor..."):
                 pddd_vals = []
                 for ticker in BIST_SEKTORLER[sec]:
-                    df = fetch_data(ticker)
+                    df = fetch_data(ticker, is_usd, usd_rate)
                     a = analyze_stock(df)
                     if a:
                         try:
+                            # PD/DD her zaman aynıdır (oran olduğu için para birimi etkilemez)
                             pddd = yf.Ticker(ticker).info.get("priceToBook", 0)
                             if pddd > 0: pddd_vals.append(pddd)
                         except: pddd = 0
-                        results.append({"Hisse": ticker.replace(".IS", ""), "Fiyat": round(float(df["Close"].iloc[-1]), 2), "Karar": a["karar"], "Durum": a["durum"], "Fibo Hedef": a["hedef"], "Tahmini Vade": a["vade"], "Olasılık": a["olasılık"], "PD/DD": round(pddd, 2), "RSI": a["rsi"], "Güven_G": a["puan"]})
+                        
+                        results.append({
+                            "Hisse": ticker.replace(".IS", ""), 
+                            "Fiyat": round(float(df["Close"].iloc[-1]), 2), 
+                            "Karar": a["karar"], 
+                            "Durum": a["durum"], 
+                            "Fibo Hedef": a["hedef"], 
+                            "Tahmini Vade": a["vade"], 
+                            "Olasılık": a["olasılık"], 
+                            "PD/DD": round(pddd, 2), 
+                            "RSI": a["rsi"], 
+                            "Güven_G": a["puan"]
+                        })
                         time.sleep(0.1)
 
             if results:
                 res_df = pd.DataFrame(results)
                 sec_avg = round(np.mean(pddd_vals), 2) if pddd_vals else 0
                 
-                # --- STRATEJİK EKLEMELER ---
                 # 1. Piyasa İştahı Barı
                 al_orani = len(res_df[res_df["Karar"] == "🚀 GÜÇLÜ AL"]) / len(res_df)
                 st.write(f"📈 **Sektör Alım İştahı:**")
                 st.progress(al_orani)
                 
-                # 2. Günün Yıldızları (Fırsat Analizi)
+                # 2. Günün Yıldızları
                 st.subheader("🌟 Sektörün En İyi Fırsatları")
-                # Kural: PD/DD < Avg ve Karar == GÜÇLÜ AL ve Durum == SIKIŞMA
                 firsatlar = res_df[(res_df["PD/DD"] < sec_avg) & (res_df["Karar"] == "🚀 GÜÇLÜ AL")]
                 if not firsatlar.empty:
                     f_cols = st.columns(len(firsatlar[:3]))
                     for idx, row in firsatlar[:3].iterrows():
-                        f_cols[idx % 3].markdown(f"""<div class='firsat-box'><h3 style='color:#00FF00;margin:0;'>{row['Hisse']}</h3><p style='margin:0;'>Hedef: {row['Fibo Hedef']}</p><small>{row['Durum']}</small></div>""", unsafe_allow_html=True)
+                        birim = "$" if is_usd else "₺"
+                        f_cols[idx % 3].markdown(f"""
+                            <div class='firsat-box'>
+                                <h3 style='color:#00FF00;margin:0;'>{row['Hisse']}</h3>
+                                <p style='margin:0;'>Hedef: {row['Fibo Hedef']} {birim}</p>
+                                <small>{row['Durum']}</small>
+                            </div>""", unsafe_allow_html=True)
                 else:
-                    st.write("Şu an tam kriterlere uyan yıldız hisse bulunamadı.")
+                    st.write("Şu an kriterlere uyan yıldız hisse bulunamadı.")
                 
                 # 3. Ana Tablo
                 st.divider()
@@ -153,4 +188,4 @@ for i, tab in enumerate(tabs):
                     return styles
 
                 st.dataframe(res_df.sort_values("Güven_G", ascending=False).drop(columns=["Güven_G"]).style.apply(style_rows, axis=1), use_container_width=True, hide_index=True)
-                st.info(f"📊 {sec} PD/DD Ortalaması: {sec_avg}")
+                st.info(f"📊 {sec} PD/DD Ortalaması: {sec_avg} | Döviz Kuru: 1 USD = {usd_rate:.2f} TL")
