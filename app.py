@@ -3,11 +3,12 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 import time
+from datetime import datetime
 
 # --- 1. SAYFA AYARLARI ---
 st.set_page_config(page_title="BIST Shadow Elite Pro", layout="wide", page_icon="💎")
 
-# CSS ile Sekmeleri ve Arayüzü Özelleştirme (Yeşil Vurgu Eklendi)
+# CSS ile Sekmeleri ve Arayüzü Özelleştirme
 st.markdown("""
     <style>
     .stApp { background: #0e1117; color: #ffffff; }
@@ -18,17 +19,21 @@ st.markdown("""
         border: 1px solid #2d2f39 !important;
         border-radius: 8px;
     }
-    /* Aktif ve Önemli Sekmeleri Vurgula */
     button[data-baseweb="tab"]:contains("🔥") {
         color: #00FF00 !important;
         font-weight: bold !important;
         border-bottom-color: #00FF00 !important;
     }
+    .update-text {
+        color: #888888;
+        font-size: 0.9rem;
+        text-align: right;
+    }
     </style>
     """, unsafe_allow_html=True)
 
 # ------------------------------------
-# BIST SEKTÖRLER (Ağırlığı Olanlar 🔥 ile İşaretlendi)
+# BIST SEKTÖRLER
 # ------------------------------------
 BIST_SEKTORLER = {
     "🔥 Banka": ["AKBNK.IS", "GARAN.IS", "ISCTR.IS", "YKBNK.IS", "HALKB.IS", "VAKBN.IS", "TSKB.IS"],
@@ -102,8 +107,13 @@ st.sidebar.title("⚙️ Ayarlar")
 currency = st.sidebar.radio("Para Birimi", ["TL ₺", "USD $"])
 is_usd = True if currency == "USD $" else False
 
-st.title("📊 BIST Shadow Elite Pro")
-st.caption("🔥 simgeli sekmeler piyasa ağırlığı yüksek, lokomotif sektörlerdir.")
+col1, col2 = st.columns([3, 1])
+with col1:
+    st.title("📊 BIST Shadow Elite Pro")
+    st.caption("🔥 simgeli sekmeler piyasa ağırlığı yüksek, lokomotif sektörlerdir.")
+with col2:
+    # Boş bir alan bırakıyoruz, tarama yapılınca dolacak
+    time_placeholder = st.empty()
 
 tabs = st.tabs(list(BIST_SEKTORLER.keys()))
 
@@ -111,8 +121,12 @@ for i, tab in enumerate(tabs):
     with tab:
         sec = list(BIST_SEKTORLER.keys())[i]
         if st.button(f"{sec} Analizini Başlat", key=f"btn_{i}"):
+            # Güncelleme zamanını yakala
+            now = datetime.now().strftime("%H:%M:%S")
+            time_placeholder.markdown(f"<p class='update-text'>⏱️ Son Güncelleme: {now}</p>", unsafe_allow_html=True)
+            
             results = []
-            with st.spinner(f"{sec} verileri çekiliyor..."):
+            with st.spinner(f"{sec} verileri analiz ediliyor..."):
                 pddd_vals = []
                 for ticker in BIST_SEKTORLER[sec]:
                     df = fetch_data(ticker, is_usd)
@@ -136,7 +150,7 @@ for i, tab in enumerate(tabs):
                             "RSI": a["rsi"],
                             "Güven_G": a["puan"]
                         })
-                        time.sleep(0.2)
+                        time.sleep(0.1)
 
             if results:
                 res_df = pd.DataFrame(results)
