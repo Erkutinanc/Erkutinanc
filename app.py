@@ -99,18 +99,26 @@ def analyze_stock(df):
         return 0.0, "⚠️ VERİ HATASI", "BELİRSİZ", 0
 
 # ---------------------------------------------------
-# STREAMLIT ARAYÜZÜ VE RENKLENDİRME FONKSİYONU
+# RENKLENDİRME FONKSİYONLARI
 # ---------------------------------------------------
 def highlight_signal(val):
-    color = '#ffffff' # Varsayılan beyaz
+    color = '#ffffff'
     if val == "🚀 GÜÇLÜ AL":
         color = '#00FF00' # Yeşil
-    elif val == "🛑 BEKLE" or val == "SAT":
-        color = '#FF0000' # Kırmızı
-    elif val == "🔄 İZLE" or val == "BEKLE":
+    elif val == "🛑 BEKLE":
+        color = '#FF4B4B' # Kırmızı
+    elif val == "🔄 İZLE":
         color = '#FFFF00' # Sarı
     return f'color: {color}; font-weight: bold'
 
+def highlight_pddd(val, avg):
+    # Eğer PD/DD sektör ortalamasından düşükse yeşil, yüksekse beyaz
+    color = '#00FF00' if val < avg else '#ffffff'
+    return f'color: {color}'
+
+# ---------------------------------------------------
+# STREAMLIT ARAYÜZÜ
+# ---------------------------------------------------
 st.sidebar.title("⚙️ Ayarlar")
 currency = st.sidebar.radio("Para Birimi", ["TL ₺", "USD $"])
 is_usd = True if currency == "USD $" else False
@@ -136,16 +144,17 @@ for i, tab in enumerate(tabs):
             with st.spinner(f"{sector_name} taranıyor..."):
                 sector_pddd_list = []
                 
-                # Önce sektör verilerini topla
                 for ticker in BIST_SEKTORLER[sector_name]:
                     df = fetch_data(ticker, is_usd, usd_rate)
                     if df is not None:
                         rsi, squeeze, karar, puan = analyze_stock(df)
                         try:
-                            info = yf.Ticker(ticker).info
+                            # Ticker bilgisini çekiyoruz
+                            t_obj = yf.Ticker(ticker)
+                            info = t_obj.info
                             pddd = info.get("priceToBook", 0)
                             roe = info.get("returnOnEquity", 0) * 100
-                            if pddd > 0: sector_pddd_list.append(pddd)
+                            if pddd and pddd > 0: sector_pddd_list.append(pddd)
                         except:
                             pddd, roe = 0, 0
                         
@@ -159,19 +168,19 @@ for i, tab in enumerate(tabs):
                             "RSI": rsi,
                             "Güven": puan
                         })
-                        time.sleep(0.1) 
+                        time.sleep(0.05) 
 
             if results:
                 res_df = pd.DataFrame(results)
+                sec_avg = round(np.mean(sector_pddd_list), 2) if sector_pddd_list else 0
                 
-                # Sektör PD/DD Ortalamasını hesapla
-                sec_pddd_avg = round(np.mean(sector_pddd_list), 2) if sector_pddd_list else 0
+                st.info(f"📊 **{sector_name}** Sektörü PD/DD Ortalaması: **{sec_avg}**")
                 
-                st.info(f"📊 {sector_name} Sektörü PD/DD Ortalaması: **{sec_pddd_avg}**")
-                
-                # Renklendirme ve Sıralama Uygula
-                styled_df = res_df.sort_values("Güven", ascending=False).style.applymap(highlight_signal, subset=['Karar'])
+                # Dinamik Renklendirme Uygulama
+                styled_df = res_df.sort_values("Güven", ascending=False).style\
+                    .applymap(highlight_signal, subset=['Karar'])\
+                    .applymap(lambda x: highlight_pddd(x, sec_avg), subset=['PD/DD'])
                 
                 st.dataframe(styled_df, use_container_width=True, hide_index=True)
             else:
-                st.warning("Veri çekilemedi. Lütfen internet bağlantısını kontrol edin veya biraz bekleyin.")
+                st.warning("Veri çekilemedi. Lütfen internet bağlantısını kontrol edin.")
