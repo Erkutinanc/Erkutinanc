@@ -12,28 +12,21 @@ st.markdown("""
     <style>
     .stApp { background: #0e1117; color: #ffffff; }
     button[data-baseweb="tab"]:contains("🔥") { color: #00FF00 !important; font-weight: bold !important; }
-    
-    /* Saat fontu ve yerleşimi */
-    .update-text { color: #888888; font-size: 0.8rem !important; text-align: right; margin-bottom: -10px; }
-    
-    /* Fırsat kutucukları (Küçültülmüş) */
+    .update-text { color: #888888; font-size: 0.8rem !important; text-align: right; }
     .firsat-box {
         background: #1a1c24;
         border: 1px solid #00FF00;
         border-radius: 8px;
         padding: 5px 10px;
         text-align: center;
-        margin-bottom: 5px;
     }
     .firsat-hisse { color: #00FF00; font-size: 1rem !important; font-weight: bold; margin: 0; }
     .firsat-detay { font-size: 0.8rem !important; margin: 0; color: #cccccc; }
-    
-    .stProgress > div > div > div > div { height: 8px !important; }
     </style>
     """, unsafe_allow_html=True)
 
 # ------------------------------------
-# BIST SEKTÖRLER
+# SEKTÖRLER
 # ------------------------------------
 BIST_SEKTORLER = {
     "🔥 Banka": ["AKBNK.IS", "GARAN.IS", "ISCTR.IS", "YKBNK.IS", "HALKB.IS", "VAKBN.IS", "TSKB.IS"],
@@ -93,20 +86,14 @@ st.sidebar.title("⚙️ Ayarlar")
 para_birimi = st.sidebar.radio("Para Birimi", ["TL ₺", "USD $"])
 is_usd = para_birimi == "USD $"
 
-# Kur bilgisini çek
 usd_rate = 1.0
 if is_usd:
-    try:
-        usd_rate = float(yf.download("USDTRY=X", period="1d", progress=False)['Close'].iloc[-1])
+    try: usd_rate = float(yf.download("USDTRY=X", period="1d", progress=False)['Close'].iloc[-1])
     except: usd_rate = 34.50
 
-# Sayfa başlığı ve Saat Alanı
 col_t1, col_t2 = st.columns([3, 1])
-with col_t1:
-    st.subheader("📊 BIST Shadow Elite Pro")
-with col_t2:
-    # SAAT BURADA: Her buton basıldığında güncellenecek placeholder
-    time_display = st.empty()
+with col_t1: st.subheader("📊 BIST Shadow Elite Pro")
+with col_t2: time_display = st.empty()
 
 tabs = st.tabs(list(BIST_SEKTORLER.keys()))
 
@@ -114,10 +101,7 @@ for i, tab in enumerate(tabs):
     with tab:
         sec = list(BIST_SEKTORLER.keys())[i]
         if st.button(f"{sec} Analizini Başlat", key=f"btn_{i}"):
-            # SAATİ GÜNCELLE
-            now = datetime.now().strftime('%H:%M:%S')
-            time_display.markdown(f"<p class='update-text'>⏱️ Son Tarama: {now}</p>", unsafe_allow_html=True)
-            
+            time_display.markdown(f"<p class='update-text'>⏱️ {datetime.now().strftime('%H:%M:%S')}</p>", unsafe_allow_html=True)
             results = []
             with st.spinner(f"{sec} taranıyor..."):
                 pddd_vals = []
@@ -132,7 +116,7 @@ for i, tab in enumerate(tabs):
                             "Hisse": ticker.replace(".IS", ""), "Fiyat": round(float(df["Close"].iloc[-1]), 2),
                             "Karar": a["karar"], "Durum": a["durum"], "Fibo Hedef": a["hedef"],
                             "Tahmini Vade": a["vade"], "Olasılık": a["olasılık"], "PD/DD": round(pddd, 2),
-                            "RSI": a["rsi"], "Puan_Gizli": a["puan"]
+                            "RSI": a["rsi"], "Puan": a["puan"]
                         })
                         time.sleep(0.05)
 
@@ -140,28 +124,22 @@ for i, tab in enumerate(tabs):
                 res_df = pd.DataFrame(results)
                 sec_avg = round(np.mean(pddd_vals), 2) if pddd_vals else 0
                 
-                # Sektör İştahı
-                al_orani = len(res_df[res_df["Karar"] == "🚀 GÜÇLÜ AL"]) / len(res_df)
-                st.caption(f"📈 Sektör Alım İştahı")
-                st.progress(al_orani)
+                st.progress(len(res_df[res_df["Karar"] == "🚀 GÜÇLÜ AL"]) / len(res_df))
                 
-                # Yıldız Fırsatlar (Küçültüldü)
                 st.markdown("##### 🌟 Sektör Fırsatları")
-                firsatlar = res_df[(res_df["PD/DD"] < sec_avg) & (res_df["Karar"] == "🚀 GÜÇLÜ AL")].sort_values("Puan_Gizli", ascending=False)
+                firsatlar = res_df[(res_df["PD/DD"] < sec_avg) & (res_df["Karar"] == "🚀 GÜÇLÜ AL")].sort_values("Puan", ascending=False)
                 if not firsatlar.empty:
                     f_cols = st.columns(min(len(firsatlar), 4))
                     for idx, (_, row) in enumerate(firsatlar[:4].iterrows()):
                         birim = "$" if is_usd else "₺"
-                        f_cols[idx].markdown(f"""<div class='firsat-box'><p class='firsat-hisse'>{row['Hisse']}</p><p class='firsat-detay'>{row['Fibo Hedef']} {birim}</p><p class='firsat-detay'>{row['Durum']}</p></div>""", unsafe_allow_html=True)
+                        f_cols[idx].markdown(f"""<div class='firsat-box'><p class='firsat-hisse'>{row['Hisse']}</p><p class='firsat-detay'>{row['Fibo Hedef']} {birim}</p></div>""", unsafe_allow_html=True)
                 
-                # RENKLİ TABLO (Eski sevdiğin hali)
                 st.divider()
                 def style_rows(row):
                     styles = [''] * len(row)
                     if row['Karar'] == "🚀 GÜÇLÜ AL": styles[row.index.get_loc('Karar')] = 'color: #00FF00; font-weight: bold'
-                    elif row['Karar'] == "🛑 BEKLE": styles[row.index.get_loc('Karar')] = 'color: #FF4B4B; font-weight: bold'
                     if row['PD/DD'] < sec_avg: styles[row.index.get_loc('PD/DD')] = 'color: #00FF00'
                     return styles
 
-                st.dataframe(res_df.sort_values("Puan_Gizli", ascending=False).drop(columns=["Puan_Gizli"]).style.apply(style_rows, axis=1), use_container_width=True, hide_index=True)
-                st.info(f"📊 {sec} PD/DD Ortalaması: {sec_avg} | Birim: {para_birimi}")
+                st.dataframe(res_df.sort_values("Puan", ascending=False).drop(columns=["Puan"]).style.apply(style_rows, axis=1), use_container_width=True, hide_index=True)
+                st.info(f"📊 {sec} PD/DD Ortalaması: {sec_avg}")
