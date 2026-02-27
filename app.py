@@ -27,12 +27,13 @@ st.markdown("""
 # BIST SEKTÖRLER VE LİSTE
 # ------------------------------------
 BIST_SEKTORLER = {
-    "Bankacılık": ["AKBNK.IS","GARAN.IS","HALKB.IS","ISCTR.IS","VAKBN.IS","YKBNK.IS"],
-    "Havacılık": ["THYAO.IS","PGSUS.IS","TAVHL.IS"],
-    "Petrokimya": ["PETKM.IS","TUPRS.IS"],
-    "Enerji": ["AKSEN.IS","ENJSA.IS","SASA.IS","ASTOR.IS"],
-    "Sanayi": ["EREGL.IS","KCHOL.IS","SAHOL.IS","SISE.IS"],
-    "Perakende": ["BIMAS.IS","MGROS.IS","SOKM.IS"]
+     "🏦 Banka": ["AKBNK.IS", "GARAN.IS", "ISCTR.IS", "YKBNK.IS", "HALKB.IS", "VAKBN.IS"],
+    "🏢 Holding": ["KCHOL.IS", "SAHOL.IS", "ALARK.IS", "DOHOL.IS", "AGHOL.IS"],
+    "🏭 Sanayi": ["EREGL.IS", "KARDM.IS", "SISE.IS", "ARCLK.IS", "TOASO.IS", "FROTO.IS"],
+    "⚡ Enerji": ["TUPRS.IS", "ENJSA.IS", "ASTOR.IS", "SASA.IS", "KONTR.IS", "AKSEN.IS"],
+    "✈️ Ulaştırma": ["THYAO.IS", "PGSUS.IS", "TAVHL.IS"],
+    "🛒 Perakende/Gıda": ["BIMAS.IS", "MGROS.IS", "CCOLA.IS", "AEFES.IS", "ULKER.IS"],
+    "💻 Teknoloji": ["ASELS.IS", "MIATK.IS", "REEDR.IS", "LOGO.IS"]
 }
 
 # ------------------------------------
