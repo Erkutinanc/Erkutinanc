@@ -23,23 +23,22 @@ st.markdown("""
     .firsat-box {
         background: #1a1c24; border: 1px solid #00FF00; border-radius: 8px; padding: 5px 10px; text-align: center;
     }
-    .firsat-hisse { color: #00FF00; font-size: 1rem !important; font-weight: bold; margin: 0; }
     </style>
     """, unsafe_allow_html=True)
 
 # ------------------------------------
-# GLOBAL GÜNDEM & SEKTÖR EĞİLİMİ
+# GÜNCEL JEOPOLİTİK EĞİLİMLER (GÜNCELLENDİ)
 # ------------------------------------
 GLOBAL_SENTIMENT = {
-    "🔥 Banka": {"Rüzgar": "🚩 Negatif/Nötr", "Neden": "Faiz indirim beklentileri marjları baskılayabilir.", "Skor": 45},
-    "🔥 Ulaştırma": {"Rüzgar": "✅ Pozitif", "Neden": "Petrol fiyatlarındaki düşüş ve artan turizm talebi.", "Skor": 85},
-    "🔥 Holding": {"Rüzgar": "🔄 Nötr", "Neden": "İskontolu çarpanlar devam ediyor, seçici hareket.", "Skor": 60},
-    "⚡ Enerji": {"Rüzgar": "🔥 Çok Pozitif", "Neden": "Yenilenebilir yatırımlar ve global enerji arz güvenliği.", "Skor": 90},
-    "🏭 Sanayi": {"Rüzgar": "🚩 Negatif", "Neden": "Avrupa'daki resesyon korkusu ihracatı zorluyor.", "Skor": 40},
-    "🛒 Perakende": {"Rüzgar": "✅ Pozitif", "Neden": "Enflasyonist ortamda güçlü nakit akışı ve defansif yapı.", "Skor": 80},
-    "🏗️ İnşaat": {"Rüzgar": "🔄 Nötr", "Neden": "Yüksek faizler konut satışlarını baskılıyor.", "Skor": 55},
-    "🚗 Otomotiv": {"Rüzgar": "🔄 Nötr", "Neden": "İç piyasada daralma beklentisi, ihracat odaklı seyir.", "Skor": 50},
-    "💻 Teknoloji": {"Rüzgar": "🚀 Patlama", "Neden": "AI (Yapay Zeka) rallisi ve dijital dönüşüm talebi.", "Skor": 95}
+    "🔥 Banka": {"Rüzgar": "🔄 Nötr", "Neden": "Global belirsizlik risk iştahını düşürüyor, güvenli liman arayışı.", "Skor": 50},
+    "🔥 Ulaştırma": {"Rüzgar": "🚩 Çok Negatif", "Neden": "Ortadoğu çatışma riski: Artan petrol maliyetleri ve hava sahası kısıtları.", "Skor": 20},
+    "🔥 Holding": {"Rüzgar": "🔄 Nötr", "Neden": "Savaş riskine karşı savunmacı portföyler ön planda.", "Skor": 55},
+    "⚡ Enerji": {"Rüzgar": "🚀 Patlama", "Neden": "Bölgesel çatışmaların arz güvenliğini tehdit etmesi, petrol/gaz rallisi.", "Skor": 95},
+    "🏭 Sanayi": {"Rüzgar": "🚩 Negatif", "Neden": "Enerji maliyetlerinde artış baskısı ve tedarik zinciri endişeleri.", "Skor": 35},
+    "🛒 Perakende": {"Rüzgar": "✅ Pozitif", "Neden": "Savaş/kriz dönemlerinde defansif talep ve gıda arzı önceliği.", "Skor": 75},
+    "🏗️ İnşaat": {"Rüzgar": "🚩 Negatif", "Neden": "Yükselen emtia fiyatları ve inşaat maliyetlerinde artış riski.", "Skor": 40},
+    "🚗 Otomotiv": {"Rüzgar": "🚩 Negatif", "Neden": "Lojistik aksamalar ve düşen tüketici güven endeksi.", "Skor": 30},
+    "💻 Teknoloji": {"Rüzgar": "✅ Pozitif", "Neden": "Askeri teknoloji (ASELS vb.) ve siber güvenlik talebinde artış.", "Skor": 80}
 }
 
 # ------------------------------------
@@ -119,19 +118,8 @@ tabs = st.tabs(list(BIST_SEKTORLER.keys()))
 for i, tab in enumerate(tabs):
     with tab:
         sec = list(BIST_SEKTORLER.keys())[i]
-        
         gs = GLOBAL_SENTIMENT[sec]
-        st.markdown(f"""
-            <div class='sentiment-box'>
-                <table style='width:100%'>
-                    <tr>
-                        <td style='width:30%'><b>Global Rüzgar:</b> {gs['Rüzgar']}</td>
-                        <td style='width:50%'><b>Haber Analizi:</b> <i>{gs['Neden']}</i></td>
-                        <td style='width:20%; text-align:right;'><b>Eğilim Skoru:</b> {gs['Skor']}</td>
-                    </tr>
-                </table>
-            </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"""<div class='sentiment-box'><table style='width:100%'><tr><td style='width:30%'><b>Global Rüzgar:</b> {gs['Rüzgar']}</td><td style='width:50%'><b>Haber Analizi:</b> <i>{gs['Neden']}</i></td><td style='width:20%; text-align:right;'><b>Eğilim Skoru:</b> {gs['Skor']}</td></tr></table></div>""", unsafe_allow_html=True)
         st.progress(gs['Skor'] / 100)
 
         if st.button(f"{sec} Analizini Başlat", key=f"btn_{i}"):
@@ -143,42 +131,31 @@ for i, tab in enumerate(tabs):
                     df = fetch_data(ticker, is_usd, usd_rate)
                     a = analyze_stock(df)
                     if a:
-                        # PD/DD İyileştirilmiş Çekme Mantığı
+                        # PD/DD İÇİN YENİ VE İNATÇI ÇEKİM MANTIĞI
+                        pddd = 0.0
                         try:
-                            t_info = yf.Ticker(ticker).info
-                            pddd = t_info.get("priceToBook")
-                            if pddd is None: # Yedek yöntem
-                                pddd = t_info.get("forwardPE", 0) / t_info.get("forwardEps", 1) # Çok kaba bir tahmin veya 0
-                                pddd = round(pddd, 2) if pddd else 0
-                        except: 
-                            pddd = 0
-                            
-                        if pddd and pddd > 0: pddd_vals.append(pddd)
+                            # Hızlı çekmeyi dene
+                            tick_obj = yf.Ticker(ticker)
+                            pddd = tick_obj.fast_info.get('price_to_book', 0.0)
+                            if pddd == 0.0: # info'dan son çare olarak dene
+                                pddd = tick_obj.info.get("priceToBook", 0.0)
+                        except: pddd = 0.0
                         
+                        if pddd and pddd > 0: pddd_vals.append(pddd)
                         results.append({"Hisse": ticker.replace(".IS", ""), "Fiyat": round(float(df["Close"].iloc[-1]), 2), "Karar": a["karar"], "Durum": a["durum"], "Fibo Hedef": a["hedef"], "Stop-Loss": a["stop"], "Tahmini Vade": a["vade"], "Olasılık": a["olasılık"], "PD/DD": round(pddd, 2) if pddd else 0.0, "RSI": a["rsi"], "Puan": a["puan"], "D": a["degisim"]})
-                        time.sleep(0.05)
+                        time.sleep(0.1)
 
             if results:
                 res_df = pd.DataFrame(results)
-                sec_avg_pddd = round(np.mean(pddd_vals), 2) if pddd_vals else 0
+                sec_avg_pddd = round(np.mean(pddd_vals), 2) if pddd_vals else 1.0
                 sec_avg_degisim = res_df["D"].mean()
-                
                 def calculate_strength(row):
                     symbol = " ⬆️" if row['D'] > sec_avg_degisim else " ⬇️"
                     leader = " ⚡" if row['D'] > sec_avg_degisim and row['Puan'] >= 80 else ""
                     return f"{row['Hisse']}{symbol}{leader}"
                 res_df["Hisse"] = res_df.apply(calculate_strength, axis=1)
-
                 radar_hisse = res_df[res_df["Puan"] == res_df["Puan"].max()].iloc[0]
                 st.markdown(f"<div class='radar-box'><span style='color:#00FF00; font-weight:bold;'>📡 RADAR:</span> <b>{radar_hisse['Hisse']}</b> (%{radar_hisse['Puan']} Güven). Hedef: {radar_hisse['Fibo Hedef']}</div>", unsafe_allow_html=True)
-                
-                st.markdown("##### 🌟 Sektör Fırsatları")
-                firsatlar = res_df[(res_df["PD/DD"] > 0) & (res_df["PD/DD"] < sec_avg_pddd) & (res_df["Karar"] == "🚀 GÜÇLÜ AL")].sort_values("Puan", ascending=False)
-                if not firsatlar.empty:
-                    f_cols = st.columns(min(len(firsatlar), 4))
-                    for idx, (_, row) in enumerate(firsatlar[:4].iterrows()):
-                        f_cols[idx].markdown(f"<div class='firsat-box'><p class='firsat-hisse'>{row['Hisse']}</p><p class='firsat-detay'>{row['Fibo Hedef']}</p></div>", unsafe_allow_html=True)
-                
                 st.divider()
                 def style_rows(row):
                     styles = [''] * len(row)
@@ -186,6 +163,5 @@ for i, tab in enumerate(tabs):
                     if row['Stop-Loss'] > 0: styles[row.index.get_loc('Stop-Loss')] = 'color: #FF4B4B;'
                     if 0 < row['PD/DD'] < sec_avg_pddd: styles[row.index.get_loc('PD/DD')] = 'color: #00FF00'
                     return styles
-
                 st.dataframe(res_df.sort_values("Puan", ascending=False).drop(columns=["Puan", "D"]).style.apply(style_rows, axis=1), use_container_width=True, hide_index=True)
                 st.info(f"📊 {sec} PD/DD Ortalaması: {sec_avg_pddd} | Sektör Ort. Değişim: %{sec_avg_degisim:.2f}")
