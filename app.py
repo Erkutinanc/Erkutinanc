@@ -28,9 +28,8 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ------------------------------------
-# GLOBAL GÜNDEM & SEKTÖR EĞİLİMİ (Yeni)
+# GLOBAL GÜNDEM & SEKTÖR EĞİLİMİ
 # ------------------------------------
-# Bu veriler normalde bir haber API'sinden gelebilir, burada en güncel makro eğilimleri tanımlıyoruz.
 GLOBAL_SENTIMENT = {
     "🔥 Banka": {"Rüzgar": "🚩 Negatif/Nötr", "Neden": "Faiz indirim beklentileri marjları baskılayabilir.", "Skor": 45},
     "🔥 Ulaştırma": {"Rüzgar": "✅ Pozitif", "Neden": "Petrol fiyatlarındaki düşüş ve artan turizm talebi.", "Skor": 85},
@@ -47,19 +46,22 @@ GLOBAL_SENTIMENT = {
 # SEKTÖRLER
 # ------------------------------------
 BIST_SEKTORLER = {
-    "🔥 Banka": ["AKBNK.IS", "GARAN.IS", "ISCTR.IS", "YKBNK.IS", "HALKB.IS", "VAKBN.IS", "TSKB.IS"],
-    "🔥 Ulaştırma": ["THYAO.IS", "PGSUS.IS", "TAVHL.IS"],
-    "🔥 Holding": ["KCHOL.IS", "SAHOL.IS", "ALARK.IS", "DOHOL.IS"],
-    "⚡ Enerji": ["TUPRS.IS", "ENJSA.IS", "ASTOR.IS", "SASA.IS", "KONTR.IS", "PETKM.IS"],
+    "🏦 Banka": ["AKBNK.IS", "GARAN.IS", "ISCTR.IS", "YKBNK.IS", "HALKB.IS", "VAKBN.IS", "DSTKF.IS", "TSKB.IS"],
+    "🏢 Holding": ["KCHOL.IS", "SAHOL.IS", "ALARK.IS", "DOHOL.IS"],
     "🏭 Sanayi": ["EREGL.IS", "KARDM.IS", "SISE.IS", "ARCLK.IS", "BRSAN.IS"],
-    "🛒 Perakende": ["BIMAS.IS", "MGROS.IS", "CCOLA.IS", "SOKM.IS", "ULKER.IS"],
-    "🏗️ İnşaat": ["BTCIM.IS", "CIMSA.IS", "OYAKC.IS", "EKGYO.IS"],
+    "⚡ Enerji": ["TUPRS.IS", "ENJSA.IS", "ASTOR.IS", "SASA.IS", "KONTR.IS", "PETKM.IS"],
+    "✈️ Ulaştırma": ["THYAO.IS", "PGSUS.IS", "TAVHL.IS", "PASEU.IS"],
+    "🛒 Perakende": ["BIMAS.IS", "MGROS.IS", "CCOLA.IS", "AEFES.IS", "SOKM.IS", "ULKER.IS", "MAVI.IS"],
+    "🏗️ İnşaat ve Çimento": ["BTCIM.IS", "CIMSA.IS", "OYAKC.IS", "EKGYO.IS", "ENKAI.IS", "KUYAS.IS"],
     "🚗 Otomotiv": ["FROTO.IS", "DOAS.IS", "TOASO.IS"],
-    "💻 Teknoloji": ["ASELS.IS", "MIATK.IS"]
+    "💻 Teknoloji": ["ASELS.IS", "MIATK.IS"],
+    "📱 İletişim": ["TCELL.IS", "TTKOM.IS"],
+    "⛏️ Maden": ["TRALT.IS", "KCAER.IS"],
+    "🌱 Tarım": ["GUBRF.IS", "HEKTS.IS"],
 }
 
 # ------------------------------------
-# ANALİZ MOTORU (Kırpılmadan Aynen Korundu)
+# ANALİZ MOTORU
 # ------------------------------------
 def fetch_data(ticker, is_usd=False, usd_rate=1.0):
     try:
@@ -121,7 +123,6 @@ for i, tab in enumerate(tabs):
     with tab:
         sec = list(BIST_SEKTORLER.keys())[i]
         
-        # --- GLOBAL EĞİLİM GÖSTERGESİ (Yeni Panel) ---
         gs = GLOBAL_SENTIMENT[sec]
         st.markdown(f"""
             <div class='sentiment-box'>
@@ -145,10 +146,19 @@ for i, tab in enumerate(tabs):
                     df = fetch_data(ticker, is_usd, usd_rate)
                     a = analyze_stock(df)
                     if a:
-                        try: pddd = yf.Ticker(ticker).info.get("priceToBook", 0)
-                        except: pddd = 0
+                        # PD/DD İyileştirilmiş Çekme Mantığı
+                        try:
+                            t_info = yf.Ticker(ticker).info
+                            pddd = t_info.get("priceToBook")
+                            if pddd is None: # Yedek yöntem
+                                pddd = t_info.get("forwardPE", 0) / t_info.get("forwardEps", 1) # Çok kaba bir tahmin veya 0
+                                pddd = round(pddd, 2) if pddd else 0
+                        except: 
+                            pddd = 0
+                            
                         if pddd and pddd > 0: pddd_vals.append(pddd)
-                        results.append({"Hisse": ticker.replace(".IS", ""), "Fiyat": round(float(df["Close"].iloc[-1]), 2), "Karar": a["karar"], "Durum": a["durum"], "Fibo Hedef": a["hedef"], "Stop-Loss": a["stop"], "Tahmini Vade": a["vade"], "Olasılık": a["olasılık"], "PD/DD": round(pddd, 2), "RSI": a["rsi"], "Puan": a["puan"], "D": a["degisim"]})
+                        
+                        results.append({"Hisse": ticker.replace(".IS", ""), "Fiyat": round(float(df["Close"].iloc[-1]), 2), "Karar": a["karar"], "Durum": a["durum"], "Fibo Hedef": a["hedef"], "Stop-Loss": a["stop"], "Tahmini Vade": a["vade"], "Olasılık": a["olasılık"], "PD/DD": round(pddd, 2) if pddd else 0.0, "RSI": a["rsi"], "Puan": a["puan"], "D": a["degisim"]})
                         time.sleep(0.05)
 
             if results:
@@ -156,20 +166,17 @@ for i, tab in enumerate(tabs):
                 sec_avg_pddd = round(np.mean(pddd_vals), 2) if pddd_vals else 0
                 sec_avg_degisim = res_df["D"].mean()
                 
-                # Güç Endeksi & Liderlik
                 def calculate_strength(row):
                     symbol = " ⬆️" if row['D'] > sec_avg_degisim else " ⬇️"
                     leader = " ⚡" if row['D'] > sec_avg_degisim and row['Puan'] >= 80 else ""
                     return f"{row['Hisse']}{symbol}{leader}"
                 res_df["Hisse"] = res_df.apply(calculate_strength, axis=1)
 
-                # Radar Bildirimi
                 radar_hisse = res_df[res_df["Puan"] == res_df["Puan"].max()].iloc[0]
                 st.markdown(f"<div class='radar-box'><span style='color:#00FF00; font-weight:bold;'>📡 RADAR:</span> <b>{radar_hisse['Hisse']}</b> (%{radar_hisse['Puan']} Güven). Hedef: {radar_hisse['Fibo Hedef']}</div>", unsafe_allow_html=True)
                 
-                # Fırsatlar
                 st.markdown("##### 🌟 Sektör Fırsatları")
-                firsatlar = res_df[(res_df["PD/DD"] < sec_avg_pddd) & (res_df["Karar"] == "🚀 GÜÇLÜ AL")].sort_values("Puan", ascending=False)
+                firsatlar = res_df[(res_df["PD/DD"] > 0) & (res_df["PD/DD"] < sec_avg_pddd) & (res_df["Karar"] == "🚀 GÜÇLÜ AL")].sort_values("Puan", ascending=False)
                 if not firsatlar.empty:
                     f_cols = st.columns(min(len(firsatlar), 4))
                     for idx, (_, row) in enumerate(firsatlar[:4].iterrows()):
@@ -180,7 +187,7 @@ for i, tab in enumerate(tabs):
                     styles = [''] * len(row)
                     if row['Karar'] == "🚀 GÜÇLÜ AL": styles[row.index.get_loc('Karar')] = 'color: #00FF00; font-weight: bold'
                     if row['Stop-Loss'] > 0: styles[row.index.get_loc('Stop-Loss')] = 'color: #FF4B4B;'
-                    if row['PD/DD'] < sec_avg_pddd: styles[row.index.get_loc('PD/DD')] = 'color: #00FF00'
+                    if 0 < row['PD/DD'] < sec_avg_pddd: styles[row.index.get_loc('PD/DD')] = 'color: #00FF00'
                     return styles
 
                 st.dataframe(res_df.sort_values("Puan", ascending=False).drop(columns=["Puan", "D"]).style.apply(style_rows, axis=1), use_container_width=True, hide_index=True)
