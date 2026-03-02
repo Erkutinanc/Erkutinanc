@@ -27,7 +27,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ------------------------------------
-# GÜNCEL JEOPOLİTİK EĞİLİMLER (GÜNCELLENDİ)
+# GÜNCEL JEOPOLİTİK EĞİLİMLER (Yeni Sektörler Eklendi)
 # ------------------------------------
 GLOBAL_SENTIMENT = {
     "🔥 Banka": {"Rüzgar": "🔄 Nötr", "Neden": "Global belirsizlik risk iştahını düşürüyor, güvenli liman arayışı.", "Skor": 50},
@@ -38,11 +38,14 @@ GLOBAL_SENTIMENT = {
     "🛒 Perakende": {"Rüzgar": "✅ Pozitif", "Neden": "Savaş/kriz dönemlerinde defansif talep ve gıda arzı önceliği.", "Skor": 75},
     "🏗️ İnşaat": {"Rüzgar": "🚩 Negatif", "Neden": "Yükselen emtia fiyatları ve inşaat maliyetlerinde artış riski.", "Skor": 40},
     "🚗 Otomotiv": {"Rüzgar": "🚩 Negatif", "Neden": "Lojistik aksamalar ve düşen tüketici güven endeksi.", "Skor": 30},
-    "💻 Teknoloji": {"Rüzgar": "✅ Pozitif", "Neden": "Askeri teknoloji (ASELS vb.) ve siber güvenlik talebinde artış.", "Skor": 80}
+    "💻 Teknoloji": {"Rüzgar": "✅ Pozitif", "Neden": "Askeri teknoloji (ASELS vb.) ve siber güvenlik talebinde artış.", "Skor": 80},
+    "📱 İletişim": {"Rüzgar": "✅ Pozitif", "Neden": "Defansif yapı, enflasyonist ortamda ARPU artışı ve güçlü nakit akışı.", "Skor": 85},
+    "⛏️ Maden": {"Rüzgar": "🚀 Patlama", "Neden": "Global krizlerde Altın/Değerli maden rallisi ve emtia fiyat artışları.", "Skor": 90},
+    "🌱 Tarım": {"Rüzgar": "✅ Pozitif", "Neden": "Gıda güvenliği endişeleri ve gübre/tarım ürünlerine olan stratejik talep.", "Skor": 70}
 }
 
 # ------------------------------------
-# SEKTÖRLER
+# SEKTÖRLER (Tam Liste)
 # ------------------------------------
 BIST_SEKTORLER = {
     "🔥 Banka": ["AKBNK.IS", "GARAN.IS", "ISCTR.IS", "YKBNK.IS", "HALKB.IS", "VAKBN.IS", "TSKB.IS"],
@@ -53,7 +56,10 @@ BIST_SEKTORLER = {
     "🛒 Perakende": ["BIMAS.IS", "MGROS.IS", "CCOLA.IS", "SOKM.IS", "ULKER.IS"],
     "🏗️ İnşaat": ["BTCIM.IS", "CIMSA.IS", "OYAKC.IS", "EKGYO.IS"],
     "🚗 Otomotiv": ["FROTO.IS", "DOAS.IS", "TOASO.IS"],
-    "💻 Teknoloji": ["ASELS.IS", "MIATK.IS"]
+    "💻 Teknoloji": ["ASELS.IS", "MIATK.IS"],
+    "📱 İletişim": ["TCELL.IS", "TTKOM.IS"],
+    "⛏️ Maden": ["TRALT.IS", "KCAER.IS"],
+    "🌱 Tarım": ["GUBRF.IS", "HEKTS.IS"]
 }
 
 # ------------------------------------
@@ -123,45 +129,4 @@ for i, tab in enumerate(tabs):
         st.progress(gs['Skor'] / 100)
 
         if st.button(f"{sec} Analizini Başlat", key=f"btn_{i}"):
-            time_display.markdown(f"<p class='update-text'>⏱️ {datetime.now().strftime('%H:%M:%S')}</p>", unsafe_allow_html=True)
-            results = []
-            with st.spinner(f"{sec} taranıyor..."):
-                pddd_vals = []
-                for ticker in BIST_SEKTORLER[sec]:
-                    df = fetch_data(ticker, is_usd, usd_rate)
-                    a = analyze_stock(df)
-                    if a:
-                        # PD/DD İÇİN YENİ VE İNATÇI ÇEKİM MANTIĞI
-                        pddd = 0.0
-                        try:
-                            # Hızlı çekmeyi dene
-                            tick_obj = yf.Ticker(ticker)
-                            pddd = tick_obj.fast_info.get('price_to_book', 0.0)
-                            if pddd == 0.0: # info'dan son çare olarak dene
-                                pddd = tick_obj.info.get("priceToBook", 0.0)
-                        except: pddd = 0.0
-                        
-                        if pddd and pddd > 0: pddd_vals.append(pddd)
-                        results.append({"Hisse": ticker.replace(".IS", ""), "Fiyat": round(float(df["Close"].iloc[-1]), 2), "Karar": a["karar"], "Durum": a["durum"], "Fibo Hedef": a["hedef"], "Stop-Loss": a["stop"], "Tahmini Vade": a["vade"], "Olasılık": a["olasılık"], "PD/DD": round(pddd, 2) if pddd else 0.0, "RSI": a["rsi"], "Puan": a["puan"], "D": a["degisim"]})
-                        time.sleep(0.1)
-
-            if results:
-                res_df = pd.DataFrame(results)
-                sec_avg_pddd = round(np.mean(pddd_vals), 2) if pddd_vals else 1.0
-                sec_avg_degisim = res_df["D"].mean()
-                def calculate_strength(row):
-                    symbol = " ⬆️" if row['D'] > sec_avg_degisim else " ⬇️"
-                    leader = " ⚡" if row['D'] > sec_avg_degisim and row['Puan'] >= 80 else ""
-                    return f"{row['Hisse']}{symbol}{leader}"
-                res_df["Hisse"] = res_df.apply(calculate_strength, axis=1)
-                radar_hisse = res_df[res_df["Puan"] == res_df["Puan"].max()].iloc[0]
-                st.markdown(f"<div class='radar-box'><span style='color:#00FF00; font-weight:bold;'>📡 RADAR:</span> <b>{radar_hisse['Hisse']}</b> (%{radar_hisse['Puan']} Güven). Hedef: {radar_hisse['Fibo Hedef']}</div>", unsafe_allow_html=True)
-                st.divider()
-                def style_rows(row):
-                    styles = [''] * len(row)
-                    if row['Karar'] == "🚀 GÜÇLÜ AL": styles[row.index.get_loc('Karar')] = 'color: #00FF00; font-weight: bold'
-                    if row['Stop-Loss'] > 0: styles[row.index.get_loc('Stop-Loss')] = 'color: #FF4B4B;'
-                    if 0 < row['PD/DD'] < sec_avg_pddd: styles[row.index.get_loc('PD/DD')] = 'color: #00FF00'
-                    return styles
-                st.dataframe(res_df.sort_values("Puan", ascending=False).drop(columns=["Puan", "D"]).style.apply(style_rows, axis=1), use_container_width=True, hide_index=True)
-                st.info(f"📊 {sec} PD/DD Ortalaması: {sec_avg_pddd} | Sektör Ort. Değişim: %{sec_avg_degisim:.2f}")
+            time_display.markdown
