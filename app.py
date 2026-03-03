@@ -561,7 +561,7 @@ if st.button("🎯 HABERLERİ ANALİZ ET", use_container_width=True, type="prima
     st.markdown("---")
     
     # --- HAFTALIK ---
-    st.subheader("📅 2. 1 HAFTALIK")
+    st.subheader("📅 1 HAFTALIK")
     if week_trades:
         for trade in week_trades[:4]:
             sentiment_emoji = "🟢" if trade['news_sentiment'] == 'POZİTİF' else ("🔴" if trade['news_sentiment'] == 'NEGATİF' else "⚪")
