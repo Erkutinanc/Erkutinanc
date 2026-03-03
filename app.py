@@ -521,7 +521,7 @@ if st.button("🎯 HABERLERİ ANALİZ ET", use_container_width=True, type="prima
             elif cat['type'] == '1 AYLIK':
                 month_trades.append(item)
     
-    # --- 1. GÜN İÇİ ---
+    # --- GÜN İÇİ ---
     st.subheader("🌅 1. GÜN İÇİ AL-SAT")
     if day_trades:
         for trade in day_trades[:4]:
@@ -560,7 +560,7 @@ if st.button("🎯 HABERLERİ ANALİZ ET", use_container_width=True, type="prima
     
     st.markdown("---")
     
-    # --- 2. HAFTALIK ---
+    # --- HAFTALIK ---
     st.subheader("📅 2. 1 HAFTALIK")
     if week_trades:
         for trade in week_trades[:4]:
@@ -598,7 +598,7 @@ if st.button("🎯 HABERLERİ ANALİZ ET", use_container_width=True, type="prima
     
     st.markdown("---")
     
-    # --- 3. AYLIK ---
+    # --- AYLIK ---
     st.subheader("📆 3. 1 AYLIK")
     if month_trades:
         for trade in month_trades[:4]:
