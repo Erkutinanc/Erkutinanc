@@ -17,6 +17,9 @@ st.markdown("""
     .week-trade { background: #1a1c24; padding: 15px; border-radius: 8px; margin: 10px 0; border: 1px solid #333; }
     .month-trade { background: #1a1c24; padding: 15px; border-radius: 8px; margin: 10px 0; border: 1px solid #333; }
     
+    /* ELITE KARTLAR (EN İYİ) */
+    .elite-trade { background: linear-gradient(135deg, #1a1c24 0%, #2d3a2d 100%); padding: 15px; border-radius: 8px; margin: 10px 0; border: 2px solid #FFD700; box-shadow: 0 0 15px rgba(255, 215, 0, 0.3); }
+    
     /* HABER KUTULARI */
     .news-positive { background: #1a1c24; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #00FF00; }
     .news-negative { background: #1a1c24; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #FF0000; }
@@ -26,13 +29,31 @@ st.markdown("""
     .target-up { color: #00FF00; font-weight: bold; font-size: 1.2em; }
     .target-down { color: #FF0000; font-weight: bold; font-size: 1.2em; }
     
-    /* SENTIMENT RENKLERİ */
-    .sentiment-high { color: #00FF00; font-weight: bold; }
-    .sentiment-medium { color: #FFFF00; font-weight: bold; }
-    .sentiment-low { color: #FF0000; font-weight: bold; }
+    /* ELITE BADGE */
+    .elite-badge { 
+        background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); 
+        color: #000; 
+        padding: 4px 12px; 
+        border-radius: 20px; 
+        font-weight: bold; 
+        font-size: 0.85em;
+        display: inline-block;
+        margin-left: 10px;
+        box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    }
     
-    /* PİYASA SENTIMENT BOX */
-    .market-box { background: #1a1c24; padding: 15px; border-radius: 8px; border: 1px solid #333; }
+    /* TOP PICK BADGE */
+    .top-badge { 
+        background: linear-gradient(135deg, #FF6B6B 0%, #C44569 100%); 
+        color: #fff; 
+        padding: 4px 12px; 
+        border-radius: 20px; 
+        font-weight: bold; 
+        font-size: 0.85em;
+        display: inline-block;
+        margin-left: 10px;
+        box-shadow: 0 0 10px rgba(255, 107, 107, 0.5);
+    }
     
     /* TABLO RENKLERİ */
     div[data-testid="stDataFrame"] { background: #1a1c24; }
@@ -54,10 +75,6 @@ st.markdown("""
     /* METRİKLER */
     [data-testid="stMetricValue"] { color: #ffffff !important; }
     [data-testid="stMetricLabel"] { color: #888888 !important; }
-    
-    /* SELECTBOX VE INPUT */
-    .stSelectbox > div > div { background: #1a1c24 !important; color: #ffffff !important; }
-    .stTextInput > div > div { background: #1a1c24 !important; color: #ffffff !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -75,7 +92,7 @@ BIST_50 = [
     "ISGYO.IS", "AKSEN.IS", "NUHCM.IS", "CELHA.IS", "TRKCM.IS"
 ]
 
-# --- TÜRKÇE SENTIMENT KELİME LİSTESİ ---
+# --- SENTIMENT KELİMELERİ ---
 POSITIVE_WORDS = [
     'kar', 'kâr', 'büyüme', 'artış', 'yükseliş', 'rekor', 'başarı', 'kazandı',
     'temettü', 'kazanç', 'fırsat', 'iyi', 'olumlu', 'güçlü', 'yatırım', 'anlaşma',
@@ -106,11 +123,10 @@ MARKET_IMPACT_WORDS = {
     'büyüme': 2, 'zarar': 2, 'yatırım': 1, 'risk': 1
 }
 
-# --- HABER ÇEKME FONKSİYONU ---
+# --- HABER ÇEKME ---
 
 @st.cache_data(ttl=300)
 def get_stock_news(ticker, limit=10):
-    """Yahoo Finance'den haber çek"""
     try:
         stock = yf.Ticker(ticker)
         news = stock.news
@@ -135,7 +151,6 @@ def get_stock_news(ticker, limit=10):
         return []
 
 def analyze_sentiment(text):
-    """Türkçe/İngilizce sentiment analizi"""
     if not text:
         return 0, 'NÖTR'
     
@@ -177,7 +192,6 @@ def analyze_sentiment(text):
     return sentiment_score, sentiment_label
 
 def get_market_sentiment():
-    """Genel piyasa sentiment"""
     try:
         bist = yf.Ticker("^XU100")
         news = bist.news[:5] if bist.news else []
@@ -207,7 +221,6 @@ def get_market_sentiment():
 
 @st.cache_data(ttl=600)
 def get_fundamental_data(ticker):
-    """Temel analiz verileri"""
     try:
         stock = yf.Ticker(ticker)
         info = stock.info
@@ -229,7 +242,6 @@ def get_fundamental_data(ticker):
         return {'book_value': 0, 'price_to_book': 0, 'roe': 0, 'revenue': 0, 'profit_margin': 0}
 
 def calculate_indicators(data):
-    """Teknik indikatörler"""
     close = data['Close']
     high = data['High']
     low = data['Low']
@@ -283,10 +295,72 @@ def calculate_indicators(data):
         'current_price': close.iloc[-1]
     }
 
+# --- KALİTE SKORU HESAPLAMA (EN İYİ HİSSE BELİRLEME) ---
+
+def calculate_quality_score(result, category_type):
+    """
+    Hisse kalite skoru hesapla (0-100)
+    En iyi hisseleri belirlemek için
+    """
+    score = 0
+    
+    # 1. Güven seviyesi (Max 30 puan)
+    if category_type == 'GÜN İÇİ':
+        day_score = result.get('day_score', 0)
+        if day_score >= 8:
+            score += 30
+        elif day_score >= 6:
+            score += 25
+        elif day_score >= 4:
+            score += 20
+    elif category_type == '1 HAFTALIK':
+        week_score = result.get('week_score', 0)
+        if week_score >= 8:
+            score += 30
+        elif week_score >= 6:
+            score += 25
+        elif week_score >= 5:
+            score += 20
+    elif category_type == '1 AYLIK':
+        month_score = result.get('month_score', 0)
+        if month_score >= 10:
+            score += 30
+        elif month_score >= 8:
+            score += 25
+        elif month_score >= 6:
+            score += 20
+    
+    # 2. Haber Sentiment (Max 25 puan)
+    if result['news_sentiment'] == 'POZİTİF':
+        score += 25
+    elif result['news_sentiment'] == 'NÖTR':
+        score += 10
+    
+    # 3. Pozitif Haber Sayısı (Max 15 puan)
+    if result['positive_news'] >= 3:
+        score += 15
+    elif result['positive_news'] >= 1:
+        score += 10
+    
+    # 4. Teknik İndikatörler (Max 20 puan)
+    tech = result.get('technical', {})
+    if tech.get('rsi', 50) < 40:
+        score += 10  # Aşırı satım bölgesi
+    if tech.get('volume_ratio', 1) > 1.5:
+        score += 10  # Yüksek hacim
+    
+    # 5. Temel Analiz (Max 10 puan)
+    fund = result.get('fundamental', {})
+    if fund.get('roe', 0) > 20:
+        score += 5
+    if fund.get('price_to_book', 99) < 2:
+        score += 5
+    
+    return score
+
 # --- ANA ANALİZ FONKSİYONU ---
 
 def analyze_with_news(ticker):
-    """Haber ve sentiment ile analiz"""
     try:
         data = yf.Ticker(ticker).history(period="3mo", interval="1d")
         if len(data) < 30:
@@ -396,7 +470,8 @@ def analyze_with_news(ticker):
                 'action': 'AL',
                 'day_target': day_target_up,
                 'day_change': ((day_target_up - current_price) / current_price * 100),
-                'confidence': 'YÜKSEK' if day_score >= 6 else 'ORTA'
+                'confidence': 'YÜKSEK' if day_score >= 6 else 'ORTA',
+                'score': day_score
             })
         elif day_score <= -4 and technical['rsi'] > 55:
             categories.append({
@@ -404,7 +479,8 @@ def analyze_with_news(ticker):
                 'action': 'SAT',
                 'day_target': day_target_down,
                 'day_change': ((day_target_down - current_price) / current_price * 100),
-                'confidence': 'YÜKSEK' if day_score <= -6 else 'ORTA'
+                'confidence': 'YÜKSEK' if day_score <= -6 else 'ORTA',
+                'score': day_score
             })
         
         if week_score >= 5:
@@ -413,7 +489,8 @@ def analyze_with_news(ticker):
                 'action': 'AL',
                 'week_target': week_target_up,
                 'week_change': ((week_target_up - current_price) / current_price * 100),
-                'confidence': 'YÜKSEK' if week_score >= 7 else 'ORTA'
+                'confidence': 'YÜKSEK' if week_score >= 7 else 'ORTA',
+                'score': week_score
             })
         elif week_score <= -5:
             categories.append({
@@ -421,7 +498,8 @@ def analyze_with_news(ticker):
                 'action': 'SAT',
                 'week_target': week_target_down,
                 'week_change': ((week_target_down - current_price) / current_price * 100),
-                'confidence': 'YÜKSEK' if week_score <= -7 else 'ORTA'
+                'confidence': 'YÜKSEK' if week_score <= -7 else 'ORTA',
+                'score': week_score
             })
         
         if month_score >= 6:
@@ -430,7 +508,8 @@ def analyze_with_news(ticker):
                 'action': 'AL',
                 'month_target': month_target_up,
                 'month_change': ((month_target_up - current_price) / current_price * 100),
-                'confidence': 'YÜKSEK' if month_score >= 9 else 'ORTA'
+                'confidence': 'YÜKSEK' if month_score >= 9 else 'ORTA',
+                'score': month_score
             })
         elif month_score <= -6:
             categories.append({
@@ -438,7 +517,8 @@ def analyze_with_news(ticker):
                 'action': 'SAT',
                 'month_target': month_target_down,
                 'month_change': ((month_target_down - current_price) / current_price * 100),
-                'confidence': 'YÜKSEK' if month_score <= -9 else 'ORTA'
+                'confidence': 'YÜKSEK' if month_score <= -9 else 'ORTA',
+                'score': month_score
             })
         
         return {
@@ -451,7 +531,10 @@ def analyze_with_news(ticker):
             'negative_news': negative_news_count,
             'recent_news': recent_news[:5],
             'fundamental': fundamental,
-            'technical': technical
+            'technical': technical,
+            'day_score': day_score,
+            'week_score': week_score,
+            'month_score': month_score
         }
         
     except Exception as e:
@@ -467,7 +550,7 @@ st.subheader("🌍 GENEL PİYASA DUYGUSU")
 market_sentiment, sentiment_color, market_advice = get_market_sentiment()
 
 st.markdown(f"""
-    <div class='market-box'>
+    <div class='market-box' style='background:#1a1c24; padding:15px; border-radius:8px; border:1px solid #333;'>
         <h3 style='margin:0;color:{sentiment_color}'>Piyasa Sentiment: {market_sentiment}</h3>
         <p style='margin:5px 0;color:#888'>{market_advice}</p>
     </div>
@@ -511,8 +594,16 @@ if st.button("🎯 HABERLERİ ANALİZ ET", use_container_width=True, type="prima
                 'positive_news': r['positive_news'],
                 'negative_news': r['negative_news'],
                 'recent_news': r['recent_news'],
+                'day_score': r['day_score'],
+                'week_score': r['week_score'],
+                'month_score': r['month_score'],
+                'fundamental': r['fundamental'],
+                'technical': r['technical'],
                 **cat
             }
+            
+            # KALİTE SKORU HESAPLA
+            item['quality_score'] = calculate_quality_score(r, cat['type'])
             
             if cat['type'] == 'GÜN İÇİ':
                 day_trades.append(item)
@@ -521,39 +612,71 @@ if st.button("🎯 HABERLERİ ANALİZ ET", use_container_width=True, type="prima
             elif cat['type'] == '1 AYLIK':
                 month_trades.append(item)
     
+    # EN İYİ HİSSELERİ BELİRLE (Kalite skoruna göre sırala)
+    day_trades_sorted = sorted(day_trades, key=lambda x: x['quality_score'], reverse=True)
+    week_trades_sorted = sorted(week_trades, key=lambda x: x['quality_score'], reverse=True)
+    month_trades_sorted = sorted(month_trades, key=lambda x: x['quality_score'], reverse=True)
+    
+    # En iyi 2 hisseyi işaretle
+    for i, trade in enumerate(day_trades_sorted):
+        trade['is_elite'] = (i < 2 and trade['quality_score'] >= 70)
+        trade['is_top'] = (i == 0 and trade['quality_score'] >= 80)
+    
+    for i, trade in enumerate(week_trades_sorted):
+        trade['is_elite'] = (i < 2 and trade['quality_score'] >= 70)
+        trade['is_top'] = (i == 0 and trade['quality_score'] >= 80)
+    
     # --- GÜN İÇİ ---
     st.subheader("🌅 GÜN İÇİ AL-SAT")
-    if day_trades:
-        for trade in day_trades[:4]:
+    if day_trades_sorted:
+        for trade in day_trades_sorted[:6]:  # İlk 6 hisse göster
             sentiment_emoji = "🟢" if trade['news_sentiment'] == 'POZİTİF' else ("🔴" if trade['news_sentiment'] == 'NEGATİF' else "⚪")
             border_color = "#00FF00" if trade['news_sentiment'] == 'POZİTİF' else ("#FF0000" if trade['news_sentiment'] == 'NEGATİF' else "#888")
             
             change_color = "target-up" if trade['day_change'] > 0 else "target-down"
             
+            # Elite/Top badge ekle
+            badge = ""
+            card_class = "day-trade"
+            if trade.get('is_top', False):
+                badge = '<span class="top-badge">🏆 TOP PICK</span>'
+                card_class = "elite-trade"
+                border_color = "#FFD700"
+            elif trade.get('is_elite', False):
+                badge = '<span class="elite-badge">⭐ ELITE</span>'
+                card_class = "elite-trade"
+                border_color = "#FFD700"
+            
             st.markdown(f"""
-                <div class='day-trade' style='border-left: 4px solid {border_color};'>
-                    <div style='display:flex;justify-content:space-between;align-items:center'>
-                        <h3 style='margin:0'>{trade['ticker'].replace(".IS", "")}</h3>
+                <div class='{card_class}' style='border-left: 4px solid {border_color};'>
+                    <div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap'>
+                        <div>
+                            <h3 style='margin:0;display:inline'>{trade['ticker'].replace(".IS", "")}</h3>
+                            {badge}
+                        </div>
                         <span style='font-size:1.5em'>{sentiment_emoji}</span>
                     </div>
                     <p style='margin:5px 0'>Fiyat: {trade['price']:.2f} ₺</p>
                     <p style='margin:5px 0'>Hedef: <span class='{change_color}'>{trade['day_target']:.2f} ₺ ({trade['day_change']:+.2f}%)</span></p>
                     <p style='margin:5px 0;color:#888'>Haber: {trade['positive_news']} pozitif, {trade['negative_news']} negatif</p>
-                    <p style='margin:5px 0;color:#888'>Güven: {trade['confidence']} | Sentiment: {trade['news_sentiment']}</p>
+                    <p style='margin:5px 0;color:#888'>Güven: {trade['confidence']} | Kalite Skoru: {trade['quality_score']}/100</p>
                     <p style='margin:5px 0;font-size:0.9em'>{trade['action']}</p>
                 </div>
             """, unsafe_allow_html=True)
         
+        # Tüm gün içi tablosu
         st.markdown("### Tüm Gün İçi Sinyaller")
         day_df = pd.DataFrame([{
             "Hisse": t['ticker'].replace(".IS", ""),
             "Fiyat": f"{t['price']:.2f}",
             "Hedef": f"{t['day_target']:.2f}",
             "Beklenti": f"{t['day_change']:+.2f}%",
+            "Kalite": f"{t['quality_score']}/100",
             "Haber": f"+{t['positive_news']}/-{t['negative_news']}",
             "Sentiment": t['news_sentiment'],
-            "Güven": t['confidence']
-        } for t in day_trades])
+            "Güven": t['confidence'],
+            "Özel": "🏆 TOP" if t.get('is_top') else ("⭐ ELITE" if t.get('is_elite') else "-")
+        } for t in day_trades_sorted])
         st.dataframe(day_df, use_container_width=True, hide_index=True)
     else:
         st.warning("⚠️ Bugün için uygun gün içi işlem bulunamadı.")
@@ -561,24 +684,38 @@ if st.button("🎯 HABERLERİ ANALİZ ET", use_container_width=True, type="prima
     st.markdown("---")
     
     # --- HAFTALIK ---
-    st.subheader("📅 1 HAFTALIK")
-    if week_trades:
-        for trade in week_trades[:4]:
+    st.subheader("📅 HAFTALIK")
+    if week_trades_sorted:
+        for trade in week_trades_sorted[:6]:
             sentiment_emoji = "🟢" if trade['news_sentiment'] == 'POZİTİF' else ("🔴" if trade['news_sentiment'] == 'NEGATİF' else "⚪")
             border_color = "#00FF00" if trade['news_sentiment'] == 'POZİTİF' else ("#FF0000" if trade['news_sentiment'] == 'NEGATİF' else "#888")
             
             change_color = "target-up" if trade['week_change'] > 0 else "target-down"
             
+            badge = ""
+            card_class = "week-trade"
+            if trade.get('is_top', False):
+                badge = '<span class="top-badge">🏆 TOP PICK</span>'
+                card_class = "elite-trade"
+                border_color = "#FFD700"
+            elif trade.get('is_elite', False):
+                badge = '<span class="elite-badge">⭐ ELITE</span>'
+                card_class = "elite-trade"
+                border_color = "#FFD700"
+            
             st.markdown(f"""
-                <div class='week-trade' style='border-left: 4px solid {border_color};'>
-                    <div style='display:flex;justify-content:space-between;align-items:center'>
-                        <h3 style='margin:0'>{trade['ticker'].replace(".IS", "")}</h3>
+                <div class='{card_class}' style='border-left: 4px solid {border_color};'>
+                    <div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap'>
+                        <div>
+                            <h3 style='margin:0;display:inline'>{trade['ticker'].replace(".IS", "")}</h3>
+                            {badge}
+                        </div>
                         <span style='font-size:1.5em'>{sentiment_emoji}</span>
                     </div>
                     <p style='margin:5px 0'>Fiyat: {trade['price']:.2f} ₺</p>
                     <p style='margin:5px 0'>Hedef: <span class='{change_color}'>{trade['week_target']:.2f} ₺ ({trade['week_change']:+.2f}%)</span></p>
                     <p style='margin:5px 0;color:#888'>Haber: {trade['positive_news']} pozitif, {trade['negative_news']} negatif</p>
-                    <p style='margin:5px 0;color:#888'>Güven: {trade['confidence']} | Sentiment: {trade['news_sentiment']}</p>
+                    <p style='margin:5px 0;color:#888'>Güven: {trade['confidence']} | Kalite Skoru: {trade['quality_score']}/100</p>
                 </div>
             """, unsafe_allow_html=True)
         
@@ -588,10 +725,12 @@ if st.button("🎯 HABERLERİ ANALİZ ET", use_container_width=True, type="prima
             "Fiyat": f"{t['price']:.2f}",
             "Hedef": f"{t['week_target']:.2f}",
             "Beklenti": f"{t['week_change']:+.2f}%",
+            "Kalite": f"{t['quality_score']}/100",
             "Haber": f"+{t['positive_news']}/-{t['negative_news']}",
             "Sentiment": t['news_sentiment'],
-            "Güven": t['confidence']
-        } for t in week_trades])
+            "Güven": t['confidence'],
+            "Özel": "🏆 TOP" if t.get('is_top') else ("⭐ ELITE" if t.get('is_elite') else "-")
+        } for t in week_trades_sorted])
         st.dataframe(week_df, use_container_width=True, hide_index=True)
     else:
         st.warning("⚠️ Bu hafta için uygun işlem bulunamadı.")
@@ -599,9 +738,9 @@ if st.button("🎯 HABERLERİ ANALİZ ET", use_container_width=True, type="prima
     st.markdown("---")
     
     # --- AYLIK ---
-    st.subheader("📆 AYLIK")
-    if month_trades:
-        for trade in month_trades[:4]:
+    st.subheader("📆 1 AYLIK")
+    if month_trades_sorted:
+        for trade in month_trades_sorted[:6]:
             sentiment_emoji = "🟢" if trade['news_sentiment'] == 'POZİTİF' else ("🔴" if trade['news_sentiment'] == 'NEGATİF' else "⚪")
             border_color = "#00FF00" if trade['news_sentiment'] == 'POZİTİF' else ("#FF0000" if trade['news_sentiment'] == 'NEGATİF' else "#888")
             
@@ -616,7 +755,7 @@ if st.button("🎯 HABERLERİ ANALİZ ET", use_container_width=True, type="prima
                     <p style='margin:5px 0'>Fiyat: {trade['price']:.2f} ₺</p>
                     <p style='margin:5px 0'>Hedef: <span class='{change_color}'>{trade['month_target']:.2f} ₺ ({trade['month_change']:+.2f}%)</span></p>
                     <p style='margin:5px 0;color:#888'>Haber: {trade['positive_news']} pozitif, {trade['negative_news']} negatif</p>
-                    <p style='margin:5px 0;color:#888'>Güven: {trade['confidence']} | Sentiment: {trade['news_sentiment']}</p>
+                    <p style='margin:5px 0;color:#888'>Güven: {trade['confidence']} | Kalite: {trade['quality_score']}/100</p>
                 </div>
             """, unsafe_allow_html=True)
         
@@ -626,10 +765,11 @@ if st.button("🎯 HABERLERİ ANALİZ ET", use_container_width=True, type="prima
             "Fiyat": f"{t['price']:.2f}",
             "Hedef": f"{t['month_target']:.2f}",
             "Beklenti": f"{t['month_change']:+.2f}%",
+            "Kalite": f"{t['quality_score']}/100",
             "Haber": f"+{t['positive_news']}/-{t['negative_news']}",
             "Sentiment": t['news_sentiment'],
             "Güven": t['confidence']
-        } for t in month_trades])
+        } for t in month_trades_sorted])
         st.dataframe(month_df, use_container_width=True, hide_index=True)
     else:
         st.warning("⚠️ Bu ay için uygun işlem bulunamadı.")
@@ -657,13 +797,16 @@ if st.button("🎯 HABERLERİ ANALİZ ET", use_container_width=True, type="prima
     # --- ÖZET ---
     st.markdown("---")
     st.subheader("📊 ÖZET")
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric("Gün İçi Sinyal", len(day_trades))
     with col2:
         st.metric("Haftalık Sinyal", len(week_trades))
     with col3:
         st.metric("Aylık Sinyal", len(month_trades))
+    with col4:
+        elite_count = len([t for t in day_trades_sorted + week_trades_sorted if t.get('is_elite', False)])
+        st.metric("Elite/Top", elite_count)
 
 else:
     st.info("👆 Butona tıklayarak haber analizi başlatın. 3-4 dakika sürer.")
@@ -673,6 +816,7 @@ st.markdown("---")
 st.markdown("""
 <center>
     <small style='color:#888'>⚠️ Yatırım tavsiyesi değildir.</small><br>
+    <small style='color:#888'>🏆 TOP PICK = En iyi sinyal (Kalite ≥80) | ⭐ ELITE = Çok iyi sinyal (Kalite ≥70)</small><br>
     <small style='color:#888'>Yahoo Finance haberleri + Türkçe sentiment + Temel/Teknik analiz</small><br>
     <small style='color:#888'>© 2024 BIST 50 HABER + SENTIMENT</small>
 </center>
