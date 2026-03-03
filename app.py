@@ -626,8 +626,8 @@ if st.button("🎯 HABERLERİ ANALİZ ET", use_container_width=True, type="prima
         trade['is_elite'] = (i < 2 and trade['quality_score'] >= 70)
         trade['is_top'] = (i == 0 and trade['quality_score'] >= 80)
     
-    # --- GÜN İÇİ ---
-    st.subheader("🌅 GÜN İÇİ AL-SAT")
+    # --- 1. GÜN İÇİ ---
+    st.subheader("🌅 1. GÜN İÇİ AL-SAT")
     if day_trades_sorted:
         for trade in day_trades_sorted[:6]:  # İlk 6 hisse göster
             sentiment_emoji = "🟢" if trade['news_sentiment'] == 'POZİTİF' else ("🔴" if trade['news_sentiment'] == 'NEGATİF' else "⚪")
@@ -683,8 +683,8 @@ if st.button("🎯 HABERLERİ ANALİZ ET", use_container_width=True, type="prima
     
     st.markdown("---")
     
-    # --- HAFTALIK ---
-    st.subheader("📅 HAFTALIK")
+    # --- 2. HAFTALIK ---
+    st.subheader("📅 2. 1 HAFTALIK")
     if week_trades_sorted:
         for trade in week_trades_sorted[:6]:
             sentiment_emoji = "🟢" if trade['news_sentiment'] == 'POZİTİF' else ("🔴" if trade['news_sentiment'] == 'NEGATİF' else "⚪")
@@ -737,8 +737,8 @@ if st.button("🎯 HABERLERİ ANALİZ ET", use_container_width=True, type="prima
     
     st.markdown("---")
     
-    # --- AYLIK ---
-    st.subheader("📆 1 AYLIK")
+    # --- 3. AYLIK ---
+    st.subheader("📆 3. 1 AYLIK")
     if month_trades_sorted:
         for trade in month_trades_sorted[:6]:
             sentiment_emoji = "🟢" if trade['news_sentiment'] == 'POZİTİF' else ("🔴" if trade['news_sentiment'] == 'NEGATİF' else "⚪")
