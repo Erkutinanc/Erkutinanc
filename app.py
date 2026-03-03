@@ -522,7 +522,7 @@ if st.button("🎯 HABERLERİ ANALİZ ET", use_container_width=True, type="prima
                 month_trades.append(item)
     
     # --- GÜN İÇİ ---
-    st.subheader("🌅 1. GÜN İÇİ AL-SAT")
+    st.subheader("🌅 GÜN İÇİ AL-SAT")
     if day_trades:
         for trade in day_trades[:4]:
             sentiment_emoji = "🟢" if trade['news_sentiment'] == 'POZİTİF' else ("🔴" if trade['news_sentiment'] == 'NEGATİF' else "⚪")
