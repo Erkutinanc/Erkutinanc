@@ -209,6 +209,8 @@ def analyze_stock(ticker):
                 timeframe_signals["Gün İçi"] = "SAT"
             else:
                 timeframe_signals["Gün İçi"] = "BEKLE"
+        else:
+            timeframe_signals["Gün İçi"] = "VERİ YOK"
         
         # Kısa Vade (1-2 hafta)
         if score >= 3:
@@ -262,6 +264,7 @@ def analyze_stock(ticker):
         }
         
     except Exception as e:
+        print(f"Hata ({ticker}): {e}")
         return None
 
 # --- BAŞLIK ---
@@ -296,6 +299,10 @@ if st.button("🔍 TÜM HİSSELERİ ANALİZ ET", use_container_width=True, type=
     progress_bar.empty()
     status_text.empty()
     
+    if not results:
+        st.error("❌ Hiçbir hisse için analiz sonucu alınamadı. Lütfen tekrar deneyin.")
+        st.stop()
+    
     # Filtreleme
     if filter_signal != "Tümü":
         results = [r for r in results if filter_signal in r["signal"]]
@@ -304,6 +311,10 @@ if st.button("🔍 TÜM HİSSELERİ ANALİZ ET", use_container_width=True, type=
         results = [r for r in results if search_ticker.upper() in r["ticker"]]
     
     results = [r for r in results if r["score"] >= min_score]
+    
+    if not results:
+        st.warning("⚠️ Filtrelere uygun sonuç bulunamadı.")
+        st.stop()
     
     # --- ÖZET KARTLARI ---
     st.subheader("📊 Piyasa Özeti")
@@ -345,26 +356,48 @@ if st.button("🔍 TÜM HİSSELERİ ANALİZ ET", use_container_width=True, type=
     
     df = pd.DataFrame(table_data)
     
+    # Renklendirme fonksiyonları
     def color_signal(val):
-        if "GÜÇLÜ AL" in val: return "color: #00FF00; font-weight: bold;"
-        if "AL" in val: return "color: #32CD32; font-weight: bold;"
-        if "GÜÇLÜ SAT" in val: return "color: #FF0000; font-weight: bold;"
-        if "SAT" in val: return "color: #FF4500; font-weight: bold;"
+        if pd.isna(val):
+            return ""
+        if "GÜÇLÜ AL" in val:
+            return "color: #00FF00; font-weight: bold;"
+        if "AL" in val:
+            return "color: #32CD32; font-weight: bold;"
+        if "GÜÇLÜ SAT" in val:
+            return "color: #FF0000; font-weight: bold;"
+        if "SAT" in val:
+            return "color: #FF4500; font-weight: bold;"
         return "color: #FFFF00;"
     
     def color_score(val):
-        if val >= 5: return "color: #00FF00;"
-        if val >= 2: return "color: #32CD32;"
-        if val <= -5: return "color: #FF0000;"
-        if val <= -2: return "color: #FF4500;"
+        if pd.isna(val):
+            return ""
+        if val >= 5:
+            return "color: #00FF00;"
+        if val >= 2:
+            return "color: #32CD32;"
+        if val <= -5:
+            return "color: #FF0000;"
+        if val <= -2:
+            return "color: #FF4500;"
         return "color: #FFFF00;"
     
-    st.dataframe(
-        df.style.applymap(color_signal, subset=["Sinyal"])
-        .applymap(color_score, subset=["Skor"]),
-        use_container_width=True,
-        hide_index=True
-    )
+    # Güvenli stil uygulaması
+    try:
+        if "Sinyal" in df.columns and "Skor" in df.columns:
+            styled_df = df.style.applymap(color_signal, subset=["Sinyal"]).applymap(color_score, subset=["Skor"])
+        elif "Sinyal" in df.columns:
+            styled_df = df.style.applymap(color_signal, subset=["Sinyal"])
+        elif "Skor" in df.columns:
+            styled_df = df.style.applymap(color_score, subset=["Skor"])
+        else:
+            styled_df = df.style
+    except Exception as e:
+        st.warning(f"⚠️ Stil uygulama hatası: {e}. Tablo normal gösteriliyor.")
+        styled_df = df
+    
+    st.dataframe(styled_df, use_container_width=True, hide_index=True)
     
     # --- DETAYLI HİSSE ANALİZİ ---
     st.subheader("🔬 Detaylı Hisse Analizi")
