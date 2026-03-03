@@ -599,7 +599,7 @@ if st.button("🎯 HABERLERİ ANALİZ ET", use_container_width=True, type="prima
     st.markdown("---")
     
     # --- AYLIK ---
-    st.subheader("📆 3. 1 AYLIK")
+    st.subheader("📆 AYLIK")
     if month_trades:
         for trade in month_trades[:4]:
             sentiment_emoji = "🟢" if trade['news_sentiment'] == 'POZİTİF' else ("🔴" if trade['news_sentiment'] == 'NEGATİF' else "⚪")
