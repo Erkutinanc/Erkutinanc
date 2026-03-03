@@ -11,17 +11,53 @@ st.set_page_config(page_title="BIST 50 HABER + SENTIMENT", layout="wide", page_i
 st.markdown("""
     <style>
     .stApp { background: #0e1117; color: #ffffff; }
-    .news-positive { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 15px; border-radius: 12px; margin: 10px 0; }
-    .news-negative { background: linear-gradient(135deg, #cb2d3e 0%, #ef473a 100%); padding: 15px; border-radius: 12px; margin: 10px 0; }
-    .news-neutral { background: linear-gradient(135deg, #434343 0%, #000000 100%); padding: 15px; border-radius: 12px; margin: 10px 0; }
-    .day-trade { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; border-radius: 12px; margin: 10px 0; }
-    .week-trade { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 15px; border-radius: 12px; margin: 10px 0; }
-    .month-trade { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 15px; border-radius: 12px; margin: 10px 0; }
+    
+    /* KARTLAR - SİYAH/GRİ */
+    .day-trade { background: #1a1c24; padding: 15px; border-radius: 8px; margin: 10px 0; border: 1px solid #333; }
+    .week-trade { background: #1a1c24; padding: 15px; border-radius: 8px; margin: 10px 0; border: 1px solid #333; }
+    .month-trade { background: #1a1c24; padding: 15px; border-radius: 8px; margin: 10px 0; border: 1px solid #333; }
+    
+    /* HABER KUTULARI */
+    .news-positive { background: #1a1c24; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #00FF00; }
+    .news-negative { background: #1a1c24; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #FF0000; }
+    .news-neutral { background: #1a1c24; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #888888; }
+    
+    /* HEDEF FİYAT RENKLERİ */
     .target-up { color: #00FF00; font-weight: bold; font-size: 1.2em; }
     .target-down { color: #FF0000; font-weight: bold; font-size: 1.2em; }
-    .sentiment-high { color: #00FF00; font-weight: bold; text-shadow: 0 0 10px #00FF00; }
+    
+    /* SENTIMENT RENKLERİ */
+    .sentiment-high { color: #00FF00; font-weight: bold; }
     .sentiment-medium { color: #FFFF00; font-weight: bold; }
     .sentiment-low { color: #FF0000; font-weight: bold; }
+    
+    /* PİYASA SENTIMENT BOX */
+    .market-box { background: #1a1c24; padding: 15px; border-radius: 8px; border: 1px solid #333; }
+    
+    /* TABLO RENKLERİ */
+    div[data-testid="stDataFrame"] { background: #1a1c24; }
+    div[data-testid="stDataFrame"] tr { background-color: #1a1c24; color: #ffffff; }
+    div[data-testid="stDataFrame"] th { background-color: #0e1117; color: #ffffff; border: 1px solid #333; }
+    
+    /* BUTONLAR */
+    .stButton > button {
+        background: #1a1c24;
+        color: #ffffff;
+        border: 1px solid #333;
+        border-radius: 8px;
+    }
+    .stButton > button:hover {
+        background: #2a2d35;
+        border: 1px solid #555;
+    }
+    
+    /* METRİKLER */
+    [data-testid="stMetricValue"] { color: #ffffff !important; }
+    [data-testid="stMetricLabel"] { color: #888888 !important; }
+    
+    /* SELECTBOX VE INPUT */
+    .stSelectbox > div > div { background: #1a1c24 !important; color: #ffffff !important; }
+    .stTextInput > div > div { background: #1a1c24 !important; color: #ffffff !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -46,7 +82,7 @@ POSITIVE_WORDS = [
     'ortaklık', 'genişleme', 'yeni', 'proje', 'teşvik', 'destek', 'ödül',
     'hedef', 'beklenti', 'pozitif', 'umut', 'potansiyel', 'değer', 'prim',
     'talep', 'satış', 'ciro', 'pay', 'lider', 'öncü', 'inovasyon', 'teknoloji',
-    'ihale', 'sözleşme', 'lisans', 'ruhsat', 'onay', 'ruhsat', 'izin',
+    'ihale', 'sözleşme', 'lisans', 'ruhsat', 'onay', 'izin',
     'dividend', 'profit', 'growth', 'record', 'success', 'gain', 'opportunity',
     'strong', 'positive', 'increase', 'rise', 'win', 'deal', 'partnership',
     'expansion', 'investment', 'target', 'potential', 'value', 'demand'
@@ -57,7 +93,7 @@ NEGATIVE_WORDS = [
     'zayıf', 'risk', 'tehlike', 'sorun', 'kriz', 'çöküş', 'iflas', 'tasfiye',
     'satış', 'küçülme', 'gerileme', 'negatif', 'korku', 'endişe', 'belirsizlik',
     'dava', 'mahkeme', 'ceza', 'yasak', 'kısıtlama', 'engelleme', 'iptal',
-    'red', 'ret', 'erteleme', 'iptal', 'askıya', 'durdurma', 'duraksama',
+    'red', 'ret', 'erteleme', 'askıya', 'durdurma', 'duraksama',
     'volatilite', 'oynaklık', 'spekülasyon', 'balon', 'çökme', 'erime',
     'loss', 'decline', 'fall', 'drop', 'crisis', 'problem', 'risk', 'weak',
     'negative', 'decrease', 'failure', 'bankruptcy', 'lawsuit', 'penalty',
@@ -113,7 +149,6 @@ def analyze_sentiment(text):
     for word in words:
         if word in POSITIVE_WORDS:
             positive_count += 1
-            # Etki kelimesi varsa ekstra puan
             if word in MARKET_IMPACT_WORDS:
                 impact_score += MARKET_IMPACT_WORDS[word]
             else:
@@ -125,16 +160,13 @@ def analyze_sentiment(text):
             else:
                 impact_score -= 1
     
-    # Toplam skor (-100 ile +100 arası)
     total_words = positive_count + negative_count
     if total_words == 0:
         return 0, 'NÖTR'
     
-    # Normalize et
     sentiment_score = (impact_score / total_words) * 50
     sentiment_score = max(-100, min(100, sentiment_score))
     
-    # Kategori belirle
     if sentiment_score >= 20:
         sentiment_label = 'POZİTİF'
     elif sentiment_score <= -20:
@@ -147,7 +179,6 @@ def analyze_sentiment(text):
 def get_market_sentiment():
     """Genel piyasa sentiment"""
     try:
-        # BIST 100 haberleri
         bist = yf.Ticker("^XU100")
         news = bist.news[:5] if bist.news else []
         
@@ -252,17 +283,15 @@ def calculate_indicators(data):
         'current_price': close.iloc[-1]
     }
 
-# --- ANA ANALİZ FONKSİYONU (HABER + SENTIMENT) ---
+# --- ANA ANALİZ FONKSİYONU ---
 
 def analyze_with_news(ticker):
     """Haber ve sentiment ile analiz"""
     try:
-        # Veri çek
         data = yf.Ticker(ticker).history(period="3mo", interval="1d")
         if len(data) < 30:
             return None
         
-        # Temel ve teknik analiz
         fundamental = get_fundamental_data(ticker)
         technical = calculate_indicators(data)
         
@@ -283,9 +312,8 @@ def analyze_with_news(ticker):
             news_item['sentiment_label'] = label
             recent_news.append(news_item)
             
-            # Son 3 gün ağırlıklı
             hours_ago = (datetime.now() - news_item['published']).total_seconds() / 3600
-            if hours_ago < 72:  # Son 3 gün
+            if hours_ago < 72:
                 weight = 2 if hours_ago < 24 else 1
                 news_sentiment_score += score * weight
                 
@@ -294,7 +322,6 @@ def analyze_with_news(ticker):
                 elif label == 'NEGATİF':
                     negative_news_count += 1
         
-        # Normalize et
         if news_list:
             news_sentiment_score = news_sentiment_score / len(news_list)
         
@@ -308,12 +335,11 @@ def analyze_with_news(ticker):
         current_price = technical['current_price']
         atr = technical['atr']
         
-        # --- SKORLAMA (HABER DAHİL) ---
+        # --- SKORLAMA ---
         day_score = 0
         week_score = 0
         month_score = 0
         
-        # Teknik skorlar
         if technical['rsi'] < 35:
             day_score += 3
         elif technical['rsi'] > 65:
@@ -335,7 +361,6 @@ def analyze_with_news(ticker):
         if current_price > technical['ema_50']:
             week_score += 2
         
-        # Temel skorlar
         if fundamental['price_to_book'] < 2 and fundamental['price_to_book'] > 0:
             month_score += 3
         
@@ -345,12 +370,12 @@ def analyze_with_news(ticker):
         if fundamental['profit_margin'] > 10:
             month_score += 2
         
-        # HABER SKORU (YENİ!)
-        news_impact = news_sentiment_score / 10  # -10 ile +10 arası
+        # HABER SKORU
+        news_impact = news_sentiment_score / 10
         
-        day_score += news_impact * 0.5   # Gün içi: %50 etki
-        week_score += news_impact * 0.7  # Haftalık: %70 etki
-        month_score += news_impact       # Aylık: %100 etki
+        day_score += news_impact * 0.5
+        week_score += news_impact * 0.7
+        month_score += news_impact
         
         # --- HEDEF FİYATLAR ---
         day_target_up = current_price + (atr * 1.5)
@@ -365,7 +390,6 @@ def analyze_with_news(ticker):
         # --- KATEGORİZE ETME ---
         categories = []
         
-        # Gün İçi
         if day_score >= 4 and technical['rsi'] < 45:
             categories.append({
                 'type': 'GÜN İÇİ',
@@ -383,7 +407,6 @@ def analyze_with_news(ticker):
                 'confidence': 'YÜKSEK' if day_score <= -6 else 'ORTA'
             })
         
-        # Haftalık
         if week_score >= 5:
             categories.append({
                 'type': '1 HAFTALIK',
@@ -401,7 +424,6 @@ def analyze_with_news(ticker):
                 'confidence': 'YÜKSEK' if week_score <= -7 else 'ORTA'
             })
         
-        # Aylık
         if month_score >= 6:
             categories.append({
                 'type': '1 AYLIK',
@@ -427,7 +449,7 @@ def analyze_with_news(ticker):
             'news_score': news_sentiment_score,
             'positive_news': positive_news_count,
             'negative_news': negative_news_count,
-            'recent_news': recent_news[:5],  # Son 5 haber
+            'recent_news': recent_news[:5],
             'fundamental': fundamental,
             'technical': technical
         }
@@ -437,7 +459,7 @@ def analyze_with_news(ticker):
         return None
 
 # --- BAŞLIK ---
-st.title("📰 BIST 50 HABER + SENTIMENT ANALİZİ")
+st.title("📰 BIST 50 HABER + SENTIMENT")
 st.markdown(f"<div style='color:#888; text-align:right'>Güncelleme: {datetime.now().strftime('%d.%m.%Y %H:%M')}</div>", unsafe_allow_html=True)
 
 # --- PİYASA SENTIMENT ---
@@ -445,13 +467,13 @@ st.subheader("🌍 GENEL PİYASA DUYGUSU")
 market_sentiment, sentiment_color, market_advice = get_market_sentiment()
 
 st.markdown(f"""
-    <div style='background:{sentiment_color}22; padding:15px; border-radius:12px; border-left:4px solid {sentiment_color};'>
+    <div class='market-box'>
         <h3 style='margin:0;color:{sentiment_color}'>Piyasa Sentiment: {market_sentiment}</h3>
-        <p style='margin:5px 0'>{market_advice}</p>
+        <p style='margin:5px 0;color:#888'>{market_advice}</p>
     </div>
 """, unsafe_allow_html=True)
 
-st.info("📊 Arka planda: Haber analizi + Sentiment + Defter değeri + ROE + Teknik indikatörler")
+st.info("📊 Arka planda: Haber + Sentiment + Defter Değeri + ROE + Teknik")
 
 # --- ANALİZ BUTONU ---
 if st.button("🎯 HABERLERİ ANALİZ ET", use_container_width=True, type="primary"):
@@ -503,26 +525,25 @@ if st.button("🎯 HABERLERİ ANALİZ ET", use_container_width=True, type="prima
     st.subheader("🌅 1. GÜN İÇİ AL-SAT")
     if day_trades:
         for trade in day_trades[:4]:
-            sentiment_class = "news-positive" if trade['news_sentiment'] == 'POZİTİF' else ("news-negative" if trade['news_sentiment'] == 'NEGATİF' else "news-neutral")
-            sentiment_emoji = "📈" if trade['news_sentiment'] == 'POZİTİF' else ("📉" if trade['news_sentiment'] == 'NEGATİF' else "➡️")
+            sentiment_emoji = "🟢" if trade['news_sentiment'] == 'POZİTİF' else ("🔴" if trade['news_sentiment'] == 'NEGATİF' else "⚪")
+            border_color = "#00FF00" if trade['news_sentiment'] == 'POZİTİF' else ("#FF0000" if trade['news_sentiment'] == 'NEGATİF' else "#888")
             
             change_color = "target-up" if trade['day_change'] > 0 else "target-down"
             
             st.markdown(f"""
-                <div class='day-trade'>
+                <div class='day-trade' style='border-left: 4px solid {border_color};'>
                     <div style='display:flex;justify-content:space-between;align-items:center'>
                         <h3 style='margin:0'>{trade['ticker'].replace(".IS", "")}</h3>
                         <span style='font-size:1.5em'>{sentiment_emoji}</span>
                     </div>
                     <p style='margin:5px 0'>Fiyat: {trade['price']:.2f} ₺</p>
                     <p style='margin:5px 0'>Hedef: <span class='{change_color}'>{trade['day_target']:.2f} ₺ ({trade['day_change']:+.2f}%)</span></p>
-                    <p style='margin:5px 0'>Haber: {trade['positive_news']} pozitif, {trade['negative_news']} negatif</p>
-                    <p style='margin:5px 0'>Güven: {trade['confidence']} | Sentiment: {trade['news_sentiment']}</p>
-                    <p style='margin:5px 0; font-size:0.9em'>{trade['action']}</p>
+                    <p style='margin:5px 0;color:#888'>Haber: {trade['positive_news']} pozitif, {trade['negative_news']} negatif</p>
+                    <p style='margin:5px 0;color:#888'>Güven: {trade['confidence']} | Sentiment: {trade['news_sentiment']}</p>
+                    <p style='margin:5px 0;font-size:0.9em'>{trade['action']}</p>
                 </div>
             """, unsafe_allow_html=True)
         
-        # Tüm gün içi tablosu
         st.markdown("### Tüm Gün İçi Sinyaller")
         day_df = pd.DataFrame([{
             "Hisse": t['ticker'].replace(".IS", ""),
@@ -543,21 +564,21 @@ if st.button("🎯 HABERLERİ ANALİZ ET", use_container_width=True, type="prima
     st.subheader("📅 2. 1 HAFTALIK")
     if week_trades:
         for trade in week_trades[:4]:
-            sentiment_class = "news-positive" if trade['news_sentiment'] == 'POZİTİF' else ("news-negative" if trade['news_sentiment'] == 'NEGATİF' else "news-neutral")
-            sentiment_emoji = "📈" if trade['news_sentiment'] == 'POZİTİF' else ("📉" if trade['news_sentiment'] == 'NEGATİF' else "➡️")
+            sentiment_emoji = "🟢" if trade['news_sentiment'] == 'POZİTİF' else ("🔴" if trade['news_sentiment'] == 'NEGATİF' else "⚪")
+            border_color = "#00FF00" if trade['news_sentiment'] == 'POZİTİF' else ("#FF0000" if trade['news_sentiment'] == 'NEGATİF' else "#888")
             
             change_color = "target-up" if trade['week_change'] > 0 else "target-down"
             
             st.markdown(f"""
-                <div class='week-trade'>
+                <div class='week-trade' style='border-left: 4px solid {border_color};'>
                     <div style='display:flex;justify-content:space-between;align-items:center'>
                         <h3 style='margin:0'>{trade['ticker'].replace(".IS", "")}</h3>
                         <span style='font-size:1.5em'>{sentiment_emoji}</span>
                     </div>
                     <p style='margin:5px 0'>Fiyat: {trade['price']:.2f} ₺</p>
                     <p style='margin:5px 0'>Hedef: <span class='{change_color}'>{trade['week_target']:.2f} ₺ ({trade['week_change']:+.2f}%)</span></p>
-                    <p style='margin:5px 0'>Haber: {trade['positive_news']} pozitif, {trade['negative_news']} negatif</p>
-                    <p style='margin:5px 0'>Güven: {trade['confidence']} | Sentiment: {trade['news_sentiment']}</p>
+                    <p style='margin:5px 0;color:#888'>Haber: {trade['positive_news']} pozitif, {trade['negative_news']} negatif</p>
+                    <p style='margin:5px 0;color:#888'>Güven: {trade['confidence']} | Sentiment: {trade['news_sentiment']}</p>
                 </div>
             """, unsafe_allow_html=True)
         
@@ -581,20 +602,21 @@ if st.button("🎯 HABERLERİ ANALİZ ET", use_container_width=True, type="prima
     st.subheader("📆 3. 1 AYLIK")
     if month_trades:
         for trade in month_trades[:4]:
-            sentiment_emoji = "📈" if trade['news_sentiment'] == 'POZİTİF' else ("📉" if trade['news_sentiment'] == 'NEGATİF' else "➡️")
+            sentiment_emoji = "🟢" if trade['news_sentiment'] == 'POZİTİF' else ("🔴" if trade['news_sentiment'] == 'NEGATİF' else "⚪")
+            border_color = "#00FF00" if trade['news_sentiment'] == 'POZİTİF' else ("#FF0000" if trade['news_sentiment'] == 'NEGATİF' else "#888")
             
             change_color = "target-up" if trade['month_change'] > 0 else "target-down"
             
             st.markdown(f"""
-                <div class='month-trade'>
+                <div class='month-trade' style='border-left: 4px solid {border_color};'>
                     <div style='display:flex;justify-content:space-between;align-items:center'>
                         <h3 style='margin:0'>{trade['ticker'].replace(".IS", "")}</h3>
                         <span style='font-size:1.5em'>{sentiment_emoji}</span>
                     </div>
                     <p style='margin:5px 0'>Fiyat: {trade['price']:.2f} ₺</p>
                     <p style='margin:5px 0'>Hedef: <span class='{change_color}'>{trade['month_target']:.2f} ₺ ({trade['month_change']:+.2f}%)</span></p>
-                    <p style='margin:5px 0'>Haber: {trade['positive_news']} pozitif, {trade['negative_news']} negatif</p>
-                    <p style='margin:5px 0'>Güven: {trade['confidence']} | Sentiment: {trade['news_sentiment']}</p>
+                    <p style='margin:5px 0;color:#888'>Haber: {trade['positive_news']} pozitif, {trade['negative_news']} negatif</p>
+                    <p style='margin:5px 0;color:#888'>Güven: {trade['confidence']} | Sentiment: {trade['news_sentiment']}</p>
                 </div>
             """, unsafe_allow_html=True)
         
@@ -624,8 +646,9 @@ if st.button("🎯 HABERLERİ ANALİZ ET", use_container_width=True, type="prima
             st.markdown(f"### {selected_ticker} Son Haberleri")
             for news in selected['recent_news']:
                 sentiment_emoji = "🟢" if news['sentiment_label'] == 'POZİTİF' else ("🔴" if news['sentiment_label'] == 'NEGATİF' else "⚪")
+                border = "#00FF00" if news["sentiment_label"]=="POZİTİF" else ("#FF0000" if news["sentiment_label"]=="NEGATİF" else "#888")
                 st.markdown(f"""
-                    <div style='background:#1e212b;padding:10px;border-radius:8px;margin:8px 0;border-left:3px solid {"#00FF00" if news["sentiment_label"]=="POZİTİF" else ("#FF0000" if news["sentiment_label"]=="NEGATİF" else "#888")}'>
+                    <div style='background:#1a1c24;padding:10px;border-radius:8px;margin:8px 0;border-left:3px solid {border}'>
                         <p style='margin:0'><b>{sentiment_emoji} {news['title']}</b></p>
                         <p style='margin:5px 0 0 0;font-size:0.85em;color:#888'>{news['publisher']} | {news['published'].strftime("%d.%m.%Y %H:%M")}</p>
                     </div>
@@ -649,8 +672,8 @@ else:
 st.markdown("---")
 st.markdown("""
 <center>
-    <small>⚠️ Yatırım tavsiyesi değildir.</small><br>
-    <small>Yahoo Finance haberleri + Türkçe sentiment analizi + Temel/Teknik analiz</small><br>
-    <small>© 2024 BIST 50 HABER + SENTIMENT</small>
+    <small style='color:#888'>⚠️ Yatırım tavsiyesi değildir.</small><br>
+    <small style='color:#888'>Yahoo Finance haberleri + Türkçe sentiment + Temel/Teknik analiz</small><br>
+    <small style='color:#888'>© 2024 BIST 50 HABER + SENTIMENT</small>
 </center>
 """, unsafe_allow_html=True)
